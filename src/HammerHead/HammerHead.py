@@ -1,14 +1,14 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication
-import main_window
+from layouts import layout_main
 import sys
 
-class MainWindow(QMainWindow, main_window.Ui_MainWindow):
+class HammerHeadMain(QMainWindow, layout_main.Ui_MainWindow):
     def __init__(self, parent=None):
-        super(MainWindow, self).__init__(parent)
+        super(HammerHeadMain, self).__init__(parent)
         self.setupUi(self)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main = MainWindow()
-    main.show()
+    hammer_head_main = HammerHeadMain()
+    hammer_head_main.show()
     sys.exit(app.exec())
