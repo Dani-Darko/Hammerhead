@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QEvent, QObject, QPoint, Qt, pyqtSignal
+from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QPixmap, QPolygon
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from layouts import layoutMain
@@ -10,6 +10,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
     def __init__(self, parent=None):
         super(HammerHeadMain, self).__init__(parent)
         self.setupUi(self)
+        self.setFixedSize(self.size())
                         
         self.buttonProperties = {"buttonHFM": {"object" : self.labelButtonHFM,
                                                "pixmap" : {"default": QPixmap("./assets/img/buttonHFMDefault.png"),
