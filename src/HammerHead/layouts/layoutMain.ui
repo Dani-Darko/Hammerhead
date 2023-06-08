@@ -14,17 +14,17 @@
    <bool>true</bool>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>HammerHead</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="mouseTracking">
     <bool>true</bool>
    </property>
-   <widget class="QLabel" name="labelTestButton">
+   <widget class="QLabel" name="labelButtonHFM">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>450</y>
+      <x>20</x>
+      <y>460</y>
       <width>100</width>
       <height>115</height>
      </rect>
@@ -36,24 +36,24 @@
      <string/>
     </property>
    </widget>
-   <widget class="QGroupBox" name="groupBox">
+   <widget class="QGroupBox" name="groupboxDynamicRegion">
     <property name="geometry">
      <rect>
-      <x>50</x>
+      <x>20</x>
       <y>20</y>
-      <width>500</width>
-      <height>400</height>
+      <width>560</width>
+      <height>420</height>
      </rect>
     </property>
     <property name="title">
-     <string>GroupBox</string>
+     <string/>
     </property>
    </widget>
-   <widget class="QLabel" name="labelTestButton2">
+   <widget class="QLabel" name="labelButtonSM">
     <property name="geometry">
      <rect>
-      <x>160</x>
-      <y>550</y>
+      <x>75</x>
+      <y>551</y>
       <width>100</width>
       <height>115</height>
      </rect>
@@ -66,17 +66,6 @@
     </property>
    </widget>
   </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>600</width>
-     <height>21</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

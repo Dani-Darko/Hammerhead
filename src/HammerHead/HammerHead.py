@@ -4,15 +4,26 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from layouts import layoutMain
 import sys
 
+
 class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
+
     def __init__(self, parent=None):
         super(HammerHeadMain, self).__init__(parent)
         self.setupUi(self)
-
-        self.labelTestButton.setPixmap(QPixmap("./assets/img/buttonTemplate.png"))
-        self.labelTestButton2.setPixmap(QPixmap("./assets/img/buttonTemplate.png"))
-        self.labelTestButtonBB = self.getHexBoundingBox(self.labelTestButton)
-        self.labelTestButtonBB2 = self.getHexBoundingBox(self.labelTestButton2)
+                        
+        self.buttonProperties = {"buttonHFM": {"object" : self.labelButtonHFM,
+                                               "pixmap" : {"default": QPixmap("./assets/img/buttonHFMDefault.png"),
+                                                           "hovered": QPixmap("./assets/img/buttonHFMHovered.png"),
+                                                           "pressed": QPixmap("./assets/img/buttonHFMPressed.png")}},
+                                 "buttonSM" : {"object" : self.labelButtonSM,
+                                               "pixmap" : {"default": QPixmap("./assets/img/buttonSMDefault.png"),
+                                                           "hovered": QPixmap("./assets/img/buttonSMHovered.png"),
+                                                           "pressed": QPixmap("./assets/img/buttonSMPressed.png")}}}
+        
+        for button in self.buttonProperties.values():
+            button["boundingBox"] = self.getHexBoundingBox(button["object"])
+            button["state"] = "default"
+            button["object"].setPixmap(button["pixmap"][button["state"]])
         
     @staticmethod   
     def getHexBoundingBox(obj):
@@ -26,15 +37,15 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         return QPolygon([a, b, c, d, e, f])
     
     def mouseMoveEvent(self, event):
-        if self.labelTestButtonBB.containsPoint(event.pos(), Qt.OddEvenFill):
-            self.labelTestButton.setEnabled(False)
-            self.labelTestButton2.setEnabled(True)
-        elif self.labelTestButtonBB2.containsPoint(event.pos(), Qt.OddEvenFill):
-            self.labelTestButton2.setEnabled(False)
-            self.labelTestButton.setEnabled(True)
-        else:
-            self.labelTestButton.setEnabled(True)
-            self.labelTestButton2.setEnabled(True)
+        for button in self.buttonProperties.values():
+            if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):
+                if button["state"] != "hovered":
+                    button["state"] = "hovered"
+                    button["object"].setPixmap(button["pixmap"][button["state"]])
+            else:
+                if button["state"] != "default":
+                    button["state"] = "default"
+                    button["object"].setPixmap(button["pixmap"][button["state"]])
 
 
 if __name__ == "__main__":
