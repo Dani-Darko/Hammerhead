@@ -52,10 +52,90 @@
    <widget class="QLabel" name="labelButtonSM">
     <property name="geometry">
      <rect>
-      <x>75</x>
-      <y>551</y>
+      <x>74</x>
+      <y>550</y>
       <width>100</width>
       <height>115</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelButtonPred">
+    <property name="geometry">
+     <rect>
+      <x>47</x>
+      <y>675</y>
+      <width>50</width>
+      <height>58</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelButtonGraph">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>722</y>
+      <width>50</width>
+      <height>58</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelButtonOptim">
+    <property name="geometry">
+     <rect>
+      <x>74</x>
+      <y>722</y>
+      <width>50</width>
+      <height>58</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelButtonStart">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>722</y>
+      <width>50</width>
+      <height>58</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="labelButtonSetup">
+    <property name="geometry">
+     <rect>
+      <x>476</x>
+      <y>722</y>
+      <width>50</width>
+      <height>58</height>
      </rect>
     </property>
     <property name="mouseTracking">

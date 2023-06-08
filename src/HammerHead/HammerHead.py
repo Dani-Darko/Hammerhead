@@ -12,18 +12,20 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.setupUi(self)
         self.setFixedSize(self.size())
                         
-        self.buttonProperties = {"buttonHFM": {"object" : self.labelButtonHFM,
-                                               "pixmap" : {"default": QPixmap("./assets/img/buttonHFMDefault.png"),
-                                                           "hovered": QPixmap("./assets/img/buttonHFMHovered.png"),
-                                                           "pressed": QPixmap("./assets/img/buttonHFMPressed.png")}},
-                                 "buttonSM" : {"object" : self.labelButtonSM,
-                                               "pixmap" : {"default": QPixmap("./assets/img/buttonSMDefault.png"),
-                                                           "hovered": QPixmap("./assets/img/buttonSMHovered.png"),
-                                                           "pressed": QPixmap("./assets/img/buttonSMPressed.png")}}}
+        self.buttonProperties = {"buttonHFM"  : {"object" : self.labelButtonHFM},
+                                 "buttonSM"   : {"object" : self.labelButtonSM},
+                                 "buttonPred" : {"object" : self.labelButtonPred},
+                                 "buttonGraph": {"object" : self.labelButtonGraph},
+                                 "buttonOptim": {"object" : self.labelButtonOptim},
+                                 "buttonSetup": {"object" : self.labelButtonSetup},
+                                 "buttonStart": {"object" : self.labelButtonStart}}
         
-        for button in self.buttonProperties.values():
+        for label, button in self.buttonProperties.items():
             button["boundingBox"] = self.getHexBoundingBox(button["object"])
             button["state"] = "default"
+            button["pixmap"] = {}
+            for state in ["default", "hovered", "pressed"]:
+                button["pixmap"][state] = QPixmap(f"./assets/img/{label.title()}{state}.png")
             button["object"].setPixmap(button["pixmap"][button["state"]])
         
     @staticmethod   
