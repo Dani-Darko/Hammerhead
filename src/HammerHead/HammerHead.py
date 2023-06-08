@@ -38,17 +38,39 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         e = QPoint(x,            y + (3 * (h // 4)))
         f = QPoint(x,            y + (h // 4))
         return QPolygon([a, b, c, d, e, f])
+        
+    @staticmethod
+    def updateButtonState(button, state):
+        if button["state"] != state:
+            button["state"] = state
+            button["object"].setPixmap(button["pixmap"][button["state"]])
     
     def mouseMoveEvent(self, event):
         for button in self.buttonProperties.values():
+            if button["state"] == "pressed":
+                return
             if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):
-                if button["state"] != "hovered":
-                    button["state"] = "hovered"
-                    button["object"].setPixmap(button["pixmap"][button["state"]])
+                self.updateButtonState(button, "hovered")
             else:
-                if button["state"] != "default":
-                    button["state"] = "default"
-                    button["object"].setPixmap(button["pixmap"][button["state"]])
+                self.updateButtonState(button, "default")
+                    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            for button in self.buttonProperties.values():
+                if button["state"] == "hovered":
+                    self.updateButtonState(button, "pressed")
+                    return
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            for button in self.buttonProperties.values():
+                if button["state"] == "pressed":
+                    if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):
+                        print("EVENT TRIGGERED")
+                        self.updateButtonState(button, "hovered")
+                    else:
+                        self.updateButtonState(button, "default")
+                    return
 
 
 if __name__ == "__main__":
