@@ -10,7 +10,9 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.setupUi(self)
 
         self.labelTestButton.setPixmap(QPixmap("./assets/img/buttonTemplate.png"))
+        self.labelTestButton2.setPixmap(QPixmap("./assets/img/buttonTemplate.png"))
         self.labelTestButtonBB = self.getHexBoundingBox(self.labelTestButton)
+        self.labelTestButtonBB2 = self.getHexBoundingBox(self.labelTestButton2)
         
     @staticmethod   
     def getHexBoundingBox(obj):
@@ -26,8 +28,13 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
     def mouseMoveEvent(self, event):
         if self.labelTestButtonBB.containsPoint(event.pos(), Qt.OddEvenFill):
             self.labelTestButton.setEnabled(False)
+            self.labelTestButton2.setEnabled(True)
+        elif self.labelTestButtonBB2.containsPoint(event.pos(), Qt.OddEvenFill):
+            self.labelTestButton2.setEnabled(False)
+            self.labelTestButton.setEnabled(True)
         else:
             self.labelTestButton.setEnabled(True)
+            self.labelTestButton2.setEnabled(True)
 
 
 if __name__ == "__main__":
