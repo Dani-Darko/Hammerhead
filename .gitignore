@@ -1,1 +1,8 @@
 __pycache__
+*.spec
+.venv/
+build/
+dist/
+src/Hammerhead/caseDatabase/
+src/Hammerhead/mlData/
+src/Hammerhead/plots/

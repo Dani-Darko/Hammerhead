@@ -1,0 +1,20 @@
+# As different versions of OpenFOAM use different output formatting, here we specify the files (and corresponding columns in files) to read for each OpenFOAM version
+# checkFor -> if the specified file is found, use this OpenFOAM version
+# inlet*/outlet* -> first entry in list is the file name to open, second entry is the column to read
+
+v2212:
+    checkFor: inlet_T_p_U.xy
+    inletU:   [inlet_T_p_U.xy,   3]
+    inletT:   [inlet_T_p_U.xy,   1]
+    inletp:   [inlet_T_p_U.xy,   2]
+    outletU:  [outlet4_T_p_U.xy, 3]
+    outletT:  [outlet4_T_p_U.xy, 1]
+    outletp:  [outlet4_T_p_U.xy, 2]
+v2106:
+    checkFor: inlet_T_p.xy
+    inletU:   [inlet_U.xy,     1]
+    inletT:   [inlet_T_p.xy,   1]
+    inletp:   [inlet_T_p.xy,   2]
+    outletU:  [outlet4_U.xy,   1]
+    outletT:  [outlet4_T_p.xy, 1]
+    outletp:  [outlet4_T_p.xy, 2]

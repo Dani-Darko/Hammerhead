@@ -1,0 +1,2 @@
+modes: 15               # Number of PCA modes to train with
+validationSplit: 0.35   # Ratio of data used for validation (0.35 = 35% used for validation, 65% used for training)

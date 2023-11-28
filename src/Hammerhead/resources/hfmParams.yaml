@@ -1,0 +1,20 @@
+I: 0.05                 # Turbulence intensity [%]: only used when Re > 2000
+mu: 0.003               # Dynamic viscosity [Pa s]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES
+L: 2.0                  # Pipe length [m]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES (Refers to the shape parametrisation section, there is an additional 0.5m before and after said section)
+r: 0.2                  # Pipe radius [m]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES
+dx: 900                 # Elements in x: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES (Refers to the shape parametrisation section, there are 100 additional elements before and after said section)
+Re_min: 1000            # Minimum Reynolds number (this will automatically modify OpenFOAM files, changing the velocity in "Helium/changeDictionaryDict")
+Re_max: 4000            # Maximum Reynolds number (it is recommended that this does not go over 4000 - the limit of mesh verification)
+Re_num: 4               # Number evenly distributed Reynolds number samples to use between Re_min and Re_max (inclusive)
+A1_min: 0.0             # Minimum main amplitude [m] (unless this case already exists, it is recommended to leave this at 0.0)
+A1_max: 0.01            # Maximum main amplitude [m] (it is recommended that this does not go over 0.01 - the limit of mesh verification)
+A1_num: 4               # Number of evenly distributed main amplitude samples to use between A1_min and A1_max
+k1_min: 0.0             # Minimum main wavenumber (unless this case already exists, it is recommended to leave this at 0.0)
+k1_max: 64.0            # Maximum main wavenumber (it is recommended that this does not go over 64.0 - the limit of mesh verification)
+k1_num: 4               # Number of evenly distributed main wavenumber samples to use between k1_min and k1_max (should be between 4 and 16 in multiples of 4)
+A2_min: 0.0             # Minimum secondary amplitude [m] (unless this case already exists, it is recommended to leave this at 0.0)
+A2_max: 0.01            # Maximum secondary amplitude [m] (it is recommended that this does not go over 0.01 - the limit of mesh verification)
+A2_num: 4               # Number of evenly distributed secondary amplitude samples to use between A2_min and A2_max
+k2_min: 0.0             # Minimum secondary wavenumber (unless this case already exists, it is recommended to leave this at 0.0)
+k2_max: 64.0            # Maximum secondary wavenumber (it is recommended that this does not go over 64.0 - the limit of mesh verification)
+k2_num: 4               # Number of evenly distributed main wavenumber samples to use between k2_min and k2_max (should be between 4 and 16 in multiples of 4)

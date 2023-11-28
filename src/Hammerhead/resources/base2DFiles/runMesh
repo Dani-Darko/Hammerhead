@@ -1,0 +1,13 @@
+#!/bin/sh
+cd ${0%/*} || exit 1    # run from this directory
+
+
+# Source tutorial run functions
+. $WM_PROJECT_DIR/bin/tools/RunFunctions
+
+
+runApplication blockMesh
+runApplication stitchMesh -perfect internal_top topWall_bottom
+
+
+# ----------------------------------------------------------------- end-of-file

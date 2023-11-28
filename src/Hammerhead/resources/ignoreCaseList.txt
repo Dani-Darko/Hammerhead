@@ -1,0 +1,4 @@
+# List of parameter combinations that will be ignored (no simulations will run for all specified cases or their equivalents)
+# Each line specifies a single combination to be ignored, and must contain 5 values separated by whitespace (A1, A2, k1, k2, Re)
+# All lines starting with "#" are ignored; example entry:
+# 0.002 0.001 32 16 300
