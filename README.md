@@ -14,20 +14,20 @@
   </a>
   
   <a href="https://github.com/Dani-Darko/Hammerhead/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/Dani-Darko/Hammerhead" alt="GPL-3.0">
+    <img src="https://img.shields.io/github/license/dani-darko/hammerhead" alt="GPL-3.0">
   </a>
   
   <a href="https://github.com/Dani-Darko/Hammerhead/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Dani-Darko/Hammerhead?include_prereleases&sort=semver"
+    <img src="https://img.shields.io/github/v/release/dani-darko/hammerhead?include_prereleases&sort=semver"
          alt="Latest release">
   </a>
   
   <a href="https://github.com/ajulik1997/Dani-Darko/Hammerhead/latest">
-    <img src="https://img.shields.io/github/release-date-pre/Dani-Darko/Hammerhead" alt="Latest release date">
+    <img src="https://img.shields.io/github/release-date-pre/dani-darko/hammerhead" alt="Latest release date">
   </a>
   
   <a href="https://github.com/Dani-Darko/Hammerhead/commits">
-    <img src="https://img.shields.io/github/commits-since/Dani-Darko/Hammerhead/latest" alt="Commits since latest release">
+    <img src="https://img.shields.io/github/commits-since/dani-darko/hammerhead/latest" alt="Commits since latest release">
   </a>
 </p>
 
@@ -39,11 +39,35 @@
 
 ## Key Features
 
-Hammerhead is developed as a tool to study the influence of micro-structures (like the structures found on the skin of fast sharks) on fluid flow inside a pipe using Computational Fluid Dynamics (CFD) high-fidelity models and Machine Learning (ML) models. The tool has a workflow as follows:
--    **High fidelity model**: Hammerhead provides the means to obtain multiple verified high-fidelity models by varying the shape of a pipe's inner surface (in contact with the fluid) to build a database of shape parametrisation cases, used for thermal and hydraulic behaviour comparison studies. The shape parametrisation computes a surface with a double harmonic equation using 4 parameters: 2 amplitudes (`A1` and `A2`) and 2 wavenumbers (`k1` and `k2`). The CFD software of choice is OpenFOAM v2212, but Hammerhead can be compatible with other versions of OpenFOAM by specifying the file structure and sampling file format.
--    **Data reduction**: Tensors are constructed from the high-fidelity model database: `spatial` (dataset size, mesh size), `modal` (dataset size, number of modes) and `lumped` (dataset size) tensors, which are used as the output of the ML models, as well as the shape/Reynolds number parameter tensor, which represents the features to feed the ML models. For the modal tensors, modes are computed using Singular Value Decomposition (SVD) to reduce the mesh-dependent data dimension keeping only the most prominent eigenvalues (the number of which can be specified by the user). The Thermo-Hydraulic Performance (THP) for the lumped tensors is computed using the equations of advected heat flux and dissipation rate.
--    **ML training**: Hammerhead uses the stored tensors to train several models: three Neural Networks (`NN`) based on the output size (using spatial, modal and lumped), a Gaussian Process (`GP`) and a Radial Basis Function (`RBF`) Interpolator (both using modal tensors only). The user can specify which models to train, and the state of each trained model is stored.
--    **Plotting and optimal shape search**: The trained ML models are used to predict THP surfaces and compare them with high-fidelity data. An inverse problem applied to the ML models predicts a set of parameters describing the optimal surface shape of the pipe and Reynolds number regime (if the Reynolds number is part of the training features). The user's trust in this prediction shall depend on the similarity of the predicted surface plots to the high-fidelity data.
+Hammerhead is developed as a tool to study the influence of micro-structures (like the structures found on the skin of
+fast sharks) on fluid flow inside a pipe using Computational Fluid Dynamics (CFD) high-fidelity models and Machine
+Learning (ML) models. The tool has a workflow as follows:
+
+-    **High fidelity model**: Hammerhead provides the means to obtain multiple verified high-fidelity models by
+varying the shape of a pipe's inner surface (in contact with the fluid) to build a database of shape parametrisation
+cases, used for thermal and hydraulic behaviour comparison studies. The shape parametrisation computes a surface with
+a double harmonic equation using 4 parameters: 2 amplitudes (`A1` and `A2`) and 2 wavenumbers (`k1` and `k2`). The CFD
+software of choice is OpenFOAM v2212, but Hammerhead can be compatible with other versions of OpenFOAM by specifying
+the file structure and sampling file format.
+
+-    **Data reduction**: Tensors are constructed from the high-fidelity model database: `spatial` (dataset size, mesh
+size), `modal` (dataset size, number of modes) and `lumped` (dataset size) tensors, which are used as the output of
+the ML models, as well as the shape/Reynolds number parameter tensor, which represents the features to feed the ML
+models. For the modal tensors, modes are computed using Singular Value Decomposition (SVD) to reduce the
+mesh-dependent data dimension keeping only the most prominent eigenvalues (the number of which can be specified by the
+user). The Thermo-Hydraulic Performance (THP) for the lumped tensors is computed using the equations of advected heat
+flux and dissipation rate.
+
+-    **ML training**: Hammerhead uses the stored tensors to train several models: three Neural Networks (`NN`) based
+on the output size (using spatial, modal and lumped), a Gaussian Process (`GP`) and a Radial Basis Function (`RBF`)
+Interpolator (both using modal tensors only). The user can specify which models to train, and the state of each
+trained model is stored.
+
+-    **Plotting and optimal shape search**: The trained ML models are used to predict THP surfaces and compare them
+with high-fidelity data. An inverse problem applied to the ML models predicts a set of parameters describing the
+optimal surface shape of the pipe and Reynolds number regime (if the Reynolds number is part of the training features).
+The user's trust in this prediction shall depend on the similarity of the predicted surface plots to the high-fidelity
+data.
 
 ## Getting Started
 
