@@ -1,6 +1,6 @@
 <h1 align="center">
     <br>
-    <img src="src/Hammerhead/assets/images/hammerheadMascot.png" alt="Hammerhead Mascot" width="240">
+    <img src="src/Hammerhead/assets/vectors/hammerheadMascot.svg" alt="Hammerhead Mascot" width="256">
     <br>
     Hammerhead
     <br>
