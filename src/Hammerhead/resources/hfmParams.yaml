@@ -8,13 +8,13 @@ Re_max: 4000            # Maximum Reynolds number (it is recommended that this d
 Re_num: 4               # Number evenly distributed Reynolds number samples to use between Re_min and Re_max (inclusive)
 A1_min: 0.0             # Minimum main amplitude [m] (unless this case already exists, it is recommended to leave this at 0.0)
 A1_max: 0.01            # Maximum main amplitude [m] (it is recommended that this does not go over 0.01 - the limit of mesh verification)
-A1_num: 4               # Number of evenly distributed main amplitude samples to use between A1_min and A1_max
+A1_num: 5               # Number of evenly distributed main amplitude samples to use between A1_min and A1_max
 k1_min: 0.0             # Minimum main wavenumber (unless this case already exists, it is recommended to leave this at 0.0)
 k1_max: 64.0            # Maximum main wavenumber (it is recommended that this does not go over 64.0 - the limit of mesh verification)
-k1_num: 4               # Number of evenly distributed main wavenumber samples to use between k1_min and k1_max (should be between 4 and 16 in multiples of 4)
+k1_num: 5               # Number of evenly distributed main wavenumber samples to use between k1_min and k1_max (should be between 4 and 16 in multiples of 4)
 A2_min: 0.0             # Minimum secondary amplitude [m] (unless this case already exists, it is recommended to leave this at 0.0)
 A2_max: 0.01            # Maximum secondary amplitude [m] (it is recommended that this does not go over 0.01 - the limit of mesh verification)
-A2_num: 4               # Number of evenly distributed secondary amplitude samples to use between A2_min and A2_max
+A2_num: 5               # Number of evenly distributed secondary amplitude samples to use between A2_min and A2_max
 k2_min: 0.0             # Minimum secondary wavenumber (unless this case already exists, it is recommended to leave this at 0.0)
 k2_max: 64.0            # Maximum secondary wavenumber (it is recommended that this does not go over 64.0 - the limit of mesh verification)
-k2_num: 4               # Number of evenly distributed main wavenumber samples to use between k2_min and k2_max (should be between 4 and 16 in multiples of 4)
+k2_num: 5               # Number of evenly distributed main wavenumber samples to use between k2_min and k2_max (should be between 4 and 16 in multiples of 4)
