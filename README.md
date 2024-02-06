@@ -166,7 +166,7 @@ TODO: GPU Training Support
 
 TODO: Provide compiled releases, update compilation instructions
 
-TOOD: Multithreading support for compiled code
+TODO: Multithreading support for compiled code
 
 ## Authors
 This software has been developed by
