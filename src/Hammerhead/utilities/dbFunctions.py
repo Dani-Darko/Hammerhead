@@ -23,6 +23,7 @@ from utilities.openfoamFunctions import (populateBlockMeshEdges,                
 
 # IMPORTS: Others #########################################################################################################################
 
+from datetime import timedelta                                                  # Others -> Operations involving relative/elapsed time
 from multiprocessing import Process, Queue                                      # Others -> Parallelisation and inter-process communication tools
 from pathlib import Path                                                        # Others -> Path manipulation
 from queue import Empty                                                         # Others -> Inter-process communcation queue exceptions
@@ -32,7 +33,7 @@ from tqdm import tqdm                                                           
 import numpy as np                                                              # Others -> Array/matrix/vector manipulation
 import os                                                                       # Others -> Get subprocess PID
 import shutil                                                                   # Others -> File/directory manipulation
-
+import subprocess                                                               # Others -> External script execution
 
 ###########################################################################################################################################
 
@@ -143,7 +144,7 @@ def computeYCoords(xArray: np.ndarray, A1: float, A2: float, k1: float, k2: floa
             + (-A2 * np.cos(xArray * k2 * np.pi))
             + A1 + A2 + r)
 
-def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[float]]], hfmParams: dict[str, float], nProc: int, openfoam: str, taskUpdateSecs: int = 1) -> None:
+def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[float]]], hfmParams: dict[str, float], nProc: int, openfoam: str, taskUpdateSecs: int = 2) -> None:
     """
     Manages the execution of up to nProc parallel subprocesses, each working on
         one of the provided unique cases; inter-process communication is
@@ -165,7 +166,8 @@ def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[fl
     """
     messageQueue = Queue()                                                      # Message queue with a single empty space, subprocesses will put status updates in the queue and the task manager will collect them
     runningProcesses = []                                                       # List that will contain all currently running Process objects
-    statusBoard = {}                                                            # Message board where subprocess status is stored, in the form {pid1: [name, status], pid2: [name, status], ...}
+    statusBoard = {}                                                            # Message board where subprocess status is stored, in the form {pid1: [name, status, timestep, clocktime], pid2: [name, status, timestep, clocktime], ...}
+    colWidthsMax = np.array([0, 0, 0, 0, 0])                                    # Maximum per-column widths of all table content (not including whitespace)
     lastPrintRows = 0                                                           # Number of rows last printed during status board update (recorded so that those rows can be cleared on next update)
     nextTaskIndex = 0                                                           # Index of unqiue case in uniqueCases that will be assigned to the next available process
     processedCases = 0                                                          # Counter recording the number of processed non-unique cases
@@ -194,20 +196,36 @@ def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[fl
                 if pid in statusBoard and status == "Done":                     # If the PID exists in the status board and the process reports "Done" ...
                     statusBoard.pop(pid)                                        # ... remove it's entry from the status board as it completed and a new task will be submitted in its place
                     continue                                                    # ... (do nothing more with the message)
-                statusBoard[pid] = [name, status]                               # Otherwise, update the status of matching process in the status board
+                statusBoard[pid] = [name, status, "0", "0"]                     # Otherwise, update the status of matching process in the status board (leave timestep and clocktime as unknown, will be updated later if available)
             except Empty:                                                       # If the queue is empty (and no more processess submitted messages while we were processing the last status update)
                 break                                                           # ... we can stop processing status updates and move onto the next stage
+                
+        for pid in statusBoard.keys():                                          # Iterate over all PIDs in message board
+            try:                                                                # Attempt to extract timestep and clocktime from chtMultiRegionSimpleFoam log file (this can fail for various reasons)
+                log = subprocess.run(                                           # Execute bash script to get last few lines of chtMultiRegionSimpleFoam log file for current thread's PID
+                    "tail -n 25"                                                # Only last 25 lines are necessary to capture both timestep and clocktime (with some redundancy, if multiple are captured, last is stored)
+                    f" $(ps --ppid $(ps --ppid {pid} -o pid=) -o cmd="          # Grand-child of thread's PID represents Allrun script of that case, use ps to find child process, and ps again to find cmd of grand-child process
+                    " | cut -d ' ' -f 2"                                        # Use cut to extract the second field, the path to the Allrun script (from which path to the corresponding logfile can be extracted)
+                    " | sed 's/Allrun/log.chtMultiRegionSimpleFoam/g')",        # Use sed to replace Allrun with log.chtMultiRegionSimpleFoam, creating full path to the current thread's logfile which will be read by tail
+                    shell=True, capture_output=True, check=True, timeout=1      # Output of tail command will be captured, if tail fails or hangs due to insufficient input, check and timout parameters ensure script fails safely
+                    ).stdout.decode().splitlines()                              # Extract tail output from stdout (as binary), convert to a string, and split into a list of lines
+                statusBoard[pid][2] = [line for line in log if line.startswith("Time =")][-1].split()[-1]  # Find line formatted as "Time = X", extract "X"
+                statusBoard[pid][3] = str(timedelta(seconds=int([line for line in log if "ClockTime" in line][-1].split()[-2])))  # Find line formatted as "ExecutionTime = Y s  ClockTime = Z s", extract Z and convert from seconds to time string
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, IndexError, ValueError):  # If the above failed, either chtMultiRegionSimpleFoam is not yet running, or logfile contains incomplete data
+                continue                                                        # ... ignore this PID, leaving the default values of zero for both fields
         
         print(f"\033[{lastPrintRows}A\033[J", end=None)                         # MESSAGE BOARD DISPLAY STEP: Print \033[nA (move up n rows) and \033[J (clear console from current row until end)
         lastPrintRows = len(statusBoard) + 7                                    # Update the printed row counter with the number of rows that are about to be printed (7 from table formatting and other counters)
-        pidCols = max([len(pid) for pid in statusBoard.keys()], default=3)      # Iterate over all PIDs in the status board, getting the length (in chars) of the largest PID
-        nameCols = max([len(pinfo[0]) for pinfo in statusBoard.values()], default=22)  # ... similarly, iterate over all active process names to get the length of the longest name
-        statusCols = max([len(pinfo[1]) for pinfo in statusBoard.values()], default=6)  # ... finally, iterate over all process status updates, storing the length of the longest one
-        hLineStr = f"|-{'-' * pidCols}-|-{'-' * nameCols}-|-{'-' * statusCols}-|"  # Construct string representing the horizontal line of the message board table
-        statusBoardStr = [f"| {key.ljust(pidCols)} | {value[0].ljust(nameCols)} | {value[1].ljust(statusCols)} |"  # Construct list of strings containing PID, process name and current status
+        colWidths = [max([len(pid) for pid in statusBoard.keys()] + [3])]       # First column width is the dictionary key (PID), get maximum length of all PIDs in status board ([3] is minimum column width)
+        for idx, minWidth in enumerate([22, 6, 8, 9]):                          # Iterate over all following columns (and their min width), corresponding to list entries of matching PID key in status board dictionary
+            colWidths.append(max([len(pinfo[idx]) for pinfo in statusBoard.values()] + [minWidth]))  # For each column compute the maximum width of the column's content, taking into account the minimum width
+        colWidthsMax = np.maximum(colWidths, colWidthsMax)                      # To prevent repetitive table resizing, take element-wise maximum of all columns and always used the largest recorded column width
+        
+        hLineStr = f"|{'|'.join(['-'*(width+2) for width in colWidthsMax])}|"   # Construct string representing the horizontal line of the message board table
+        statusBoardStr = [f"| {' | '.join([getattr(item, just)(width) for item, width, just in zip([key] + value, colWidthsMax, ['ljust']*3 + ['rjust']*2)])} |"  # Construct list of strings (one for each row), padding and aligning column content
                           for key, value in statusBoard.items()]                # ... one string is generated for each key-value pair in the dictionary
         print('\n'.join([hLineStr,                                              # Join and print all the above and below status board strings
-                         f"| {'PID'.center(pidCols)} | {'Unique Case Parameters'.center(nameCols)} | {'Status'.center(statusCols)} |",  # Table header row
+                         f"| {' | '.join([item.center(width) for item, width in zip(['PID', 'Unique Case Parameters', 'Status', 'TimeStep', 'ClockTime'], colWidthsMax)])} |",  # Table header row
                          hLineStr,
                          *statusBoardStr,
                          hLineStr,
