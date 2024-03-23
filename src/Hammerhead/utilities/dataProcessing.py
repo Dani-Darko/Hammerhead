@@ -58,9 +58,9 @@ def standardiseTensor(expandedTensor: torch.tensor) -> list[torch.tensor, torch.
     std: torch.tensor                   Standard deviation of the original expanded tensor
     """
     std, mean = torch.std_mean(expandedTensor, dim=0)                       # Compute the standard deviation and mean of the expanded data
-    standarisedTensor = (expandedTensor - mean) / std                       # Standardise tensor based on its mean and standard deviation (compute the Z-score)
-    standarisedTensor[torch.isnan(standarisedTensor)] = 0.0                 # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
-    return [standarisedTensor, mean, std]                                   # Return standardised tensor, as well as the mean and standard deviation of the original expanded tensor
+    standardisedTensor = (expandedTensor - mean) / std                      # Standardise tensor based on its mean and standard deviation (compute the Z-score)
+    standardisedTensor[torch.isnan(standardisedTensor)] = 0.0               # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
+    return [standardisedTensor, mean, std]                                  # Return standardised tensor, as well as the mean and standard deviation of the original expanded tensor
 
 def unstandardiseTensor(standarisedTensor: torch.tensor, mean: torch.tensor, std: torch.tensor) -> torch.tensor:
     """
