@@ -25,9 +25,9 @@ from utilities.dataProcessing import dbTensorUpdate                             
 # IMPORTS: Others #########################################################################################################################
 
 from argparse import ArgumentParser, Namespace                                  # Other -> Parse and validate command line arguments
-from multiprocessing import cpu_count                                           # Other -> Get number logical CPU cores
 from subprocess import CalledProcessError, check_output                         # Other -> Check openFOAM executable exists in current environment
 
+import multiprocessing                                                          # Other -> Get number logical CPU cores, set context/start methods
 import os                                                                       # Other -> Path and working director manipulation tools
 
 ###########################################################################################################################################
@@ -49,7 +49,7 @@ def setup_argparse() -> ArgumentParser:
     parser.add_argument('-d', '--domain',   action="store", type=str, required=True,                         choices=['axisym', '2D'],                                        help="Type of HFM data domain")
     parser.add_argument(      '--noHFM',    action="store_true",      required=False, default=False,                                                                          help="Disable HFM database population process")
     parser.add_argument(      '--noTensor', action="store_true",      required=False, default=False,                                                                          help="Disable the tensor update process from HFM database")
-    parser.add_argument('-n', '--nProc',    action="store", type=int, required=False, default=cpu_count(),                                                                    help="Number of concurrent processes")
+    parser.add_argument('-n', '--nProc',    action="store", type=int, required=False, default=multiprocessing.cpu_count(),                                                    help="Number of concurrent processes")
     parser.add_argument('-o', '--openfoam', action="store", type=str, required=False, default="openfoam2212",                                                                 help="OpenFOAM executable name or path")
     parser.add_argument('-p', '--plot',     action="store", type=str, required=False, default=[], nargs="*", choices=['kriging', 'lumped', 'modal', 'rbf', 'spatial', 'all'], help="Plot ML surface vs HF sparse data")
     parser.add_argument('-s', '--search',   action="store", type=str, required=False, default=[], nargs="*", choices=['kriging', 'lumped', 'modal', 'rbf', 'spatial', 'all'], help="Line search for optimal shape parameters")
@@ -103,7 +103,8 @@ def parse_args(parser: ArgumentParser) -> Namespace:
 ###############################################################################
     
 if __name__ == "__main__":
-    os.chdir(os.path.abspath(os.path.dirname(__file__)))
+    multiprocessing.set_start_method('spawn')                                   # All sub-processes will "spawn" rather than "fork" (needed by PyTorch)
+    os.chdir(os.path.abspath(os.path.dirname(__file__)))                        # Ensure script's CWD is always where the main hammerhead.py script is located
     args: Namespace = parse_args(setup_argparse())                              # Parse and validate arguments
     if not args.console:                                                        # If console-only mode not requested, GUI mode is used ...
         from hammerheadQt import launch_gui                                     # ... load necessary GUI resources into memory
