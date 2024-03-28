@@ -96,7 +96,7 @@ def RBF(name: str,
     -------
     outputTensor : torch.tensor         Prediction output tensor
     """
-    rbfi = torch.load(tensorDir / name / f"{name}_{varName}.pickle")            # Load the stored trained RBFI object (interally uses pickle)
+    rbfi = torch.load(tensorDir / name / f"{name}_{varName}.pt")                # Load the stored trained RBFI object (interally uses pickle)
     
     data = torch.from_numpy(rbfi(xPred.detach())).float()                       # Produce the prediction
     dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
@@ -146,7 +146,7 @@ def GP(name: str,
     model.eval()                                                               # Evaluate current state of the model to enable prediction
     likelihood.eval()                                                          # Evaluate current state of the likelihood to enable prediction
 
-    with torch.no_grad(), gpytorch.settings.fast_pred_var():                   # Disable gradient calculation for prediction purposes
+    with torch.no_grad(), gpytorch.settings.fast_pred_var(state=True), gpytorch.settings.fast_pred_samples(state=True):                   # Disable gradient calculation for prediction purposes
         predictions = likelihood(*model(*[xPred for _ in range(dimensionSize)]))  # Produce the multi-output prediction including confidence region
 
     data = torch.column_stack([prediction.mean for prediction in predictions])  # Extract the mean value from the prediction
