@@ -21,7 +21,7 @@ import gpytorch                                                                 
 ###########################################################################################################################################
 
 class Network(torch.nn.Module):
-    def __init__(self, featureSize: int, dimensionSize: int, neurons: int = 32, hiddenLayers: int = 1) -> None:
+    def __init__(self, featureSize: int, dimensionSize: int, neurons: int, hiddenLayers: int) -> None:
         """
         Neural network class used by modal, spatial and lumped models
         

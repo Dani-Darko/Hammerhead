@@ -29,6 +29,8 @@ import torch                                                                    
 def NN(name: str,
        featureSize: int,
        dimensionSize: int,
+       layers: int,
+       neurons: int,
        xTrain: torch.tensor,
        outputTrain: torch.tensor,
        xValid: torch.tensor,
@@ -46,6 +48,8 @@ def NN(name: str,
     name : str                          Name of model (used for labelling stored training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
+    layers: int                         Number of NN hidden layers
+    neurons: int                        Number of NN neurons per layer
     xTrain : torch.tensor               Feature tensor used for training
     outputTrain : torch.tensor          Output data tensor used for training
     xValid : torch.tensor               Feature tensor used for validation (overfitting)
@@ -62,7 +66,7 @@ def NN(name: str,
     harmonics : str                     Number of harmonics that were used for training
     varName : str                       Variable name (used for post-training report)
     """
-    network = Network(featureSize, dimensionSize)                               # Create instance of neural network class
+    network = Network(featureSize, dimensionSize, layers, neurons)              # Create instance of neural network class
     optimizer = torch.optim.RMSprop(                                            # Object to hold and update hyperparameter state of the model throughout training
         network.parameters(), momentum=0.75, lr=1e-4, weight_decay=1e-5)        # These parameters seem to work for this particular problem
     lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)

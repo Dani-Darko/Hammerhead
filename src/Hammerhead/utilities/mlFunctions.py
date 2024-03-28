@@ -114,6 +114,7 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
                 outputValid = tensors[ model["dimensionType"] ][ var ][validIdx, :]  # ... compute the output validation tensor
                 taskFuncs.append(getattr(train, model["function"]))             # ... get the model function callable and the keyword argument dictionary that will be passed to it, and store them in their respective task lists
                 taskKwargsList.append({"name": name, "featureSize": featureSize, "dimensionSize": model["dimensionSize"],
+                                       "layers": trainingParams["layers"], "neurons": trainingParams["neurons"],
                                        "xTrain": xTrain, "outputTrain": outputTrain, "xValid": xValid, "outputValid": outputValid,
                                        "varName": var, "tensorDir": tensorDir})
     genericPoolManager(taskFuncs, None, taskKwargsList, nProc, "Training requested ML/RBF models", "Completed training of {} on Re={} harmonics={} {} variable")  # Send all tasks to the multi-threaded worker function

@@ -1,2 +1,4 @@
+layers: 1               # Number of hidden layers for NN architecture
 modes: 15               # Number of PCA modes to train with
+neurons: 32             # Number of neurons per layer for NN architecture
 validationSplit: 0.35   # Ratio of data used for validation (0.35 = 35% used for validation, 65% used for training)
