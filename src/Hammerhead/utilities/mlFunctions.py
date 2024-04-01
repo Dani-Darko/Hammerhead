@@ -155,15 +155,21 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     xPredExpandedArray1H = np.array(np.meshgrid(xv, yv), dtype=np.float32).T.reshape(-1, 2)  # Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
     xPredExpandedArray2H = np.insert(xPredExpandedArray1H, [1, 2], [plotParams["A2"], plotParams["k2"]], axis=1)  # Array of unstandardised (expanded) x-values used for prediction for a 2-harmonic scenario
     
-    tasksSingleRe, tensorDirsReAll = getPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
-    tasksMultiRe = getPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
+    tasksSingleRe, tensorDirsReAll = getPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H,
+                                                          trainingParams["layers"], trainingParams["neurons"])  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
+    tasksMultiRe = getPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H, trainingParams["layers"], trainingParams["neurons"])  # Get a partial list of task arguments for all multi-Re scenarios
     
     taskArgs = [[xv, yv, plotDir, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
     taskFuncs = [lumpedPlot for _ in taskArgs]                                  # All function calls are made to a single function, create a list containing only that function for each element in taskArgs
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", "Completed plotting of {} with Re={} harmonics={}")  # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
     
-def getPlotTasksSingleRe(plotTasks: list[str], tensorDirs: list[Path], xPredExpandedArray1H: np.ndarray, xPredExpandedArray2H: np.ndarray) -> tuple[list[list[str, torch.tensor, Path]], list[Path]]:
+def getPlotTasksSingleRe(plotTasks: list[str],
+                         tensorDirs: list[Path],
+                         xPredExpandedArray1H: np.ndarray,
+                         xPredExpandedArray2H: np.ndarray,
+                         layers: int,
+                         neurons: int) -> tuple[list[list[str, torch.tensor, Path]], list[Path]]:
     """
     ML/RBF prediction task collection function for a single-Re scenario
     
@@ -173,7 +179,9 @@ def getPlotTasksSingleRe(plotTasks: list[str], tensorDirs: list[Path], xPredExpa
     tensorDirs : list                   List of tensor directories for which to predict / plot
     xPredExpandedArray1H : array-like   Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
     xPredExpandedArray2H : array-like   Array of unstandardised (expanded) x-values used for prediction for a 2-harmonic scenario
-    
+    layers: int                         Number of NN hidden layers
+    neurons: int                        Number of NN neurons per layer
+
     Returns
     -------
     tasksSingleRe : list                List of tasks, where each entry is a partial list of parameters to be passed to lumpedPlot
@@ -196,11 +204,16 @@ def getPlotTasksSingleRe(plotTasks: list[str], tensorDirs: list[Path], xPredExpa
         for name, model in [(task, models[task]) for task in plotTasks]:        # Iterate over all tasks specified in --plot, returning the name of the model for training, and its respective entry in the dictionary
             dataMean = torch.load(tensorDir / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
             dataStd = torch.load(tensorDir/ f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-            lumpedPred = predictTHP(model, name, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+            lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
             tasksSingleRe.append([name, lumpedPred, tensorDir])                 # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
     return tasksSingleRe, tensorDirsReAll
             
-def getPlotTasksMultiRe(plotTasks: list[str], tensorDirsReAll: list[Path], xPredExpandedArray1H: np.ndarray, xPredExpandedArray2H: np.ndarray) -> list[list[str, torch.tensor, Path]]:
+def getPlotTasksMultiRe(plotTasks: list[str],
+                        tensorDirsReAll: list[Path],
+                        xPredExpandedArray1H: np.ndarray,
+                        xPredExpandedArray2H: np.ndarray,
+                        layers: int,
+                        neurons: int) -> list[list[str, torch.tensor, Path]]:
     """
     ML/RBF prediction task collection function for a multi-Re scenario
     
@@ -210,7 +223,9 @@ def getPlotTasksMultiRe(plotTasks: list[str], tensorDirsReAll: list[Path], xPred
     tensorDirsReAll : list              List of Re_All tensor directories for which to predict / plot
     xPredExpandedArray1H : array-like   Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
     xPredExpandedArray2H : array-like   Array of unstandardised (expanded) x-values used for prediction for a 2-harmonic scenario
-    
+    layers: int                         Number of NN hidden layers
+    neurons: int                        Number of NN neurons per layer
+
     Returns
     -------
     tasksMultiRe : list                 List of tasks, where each entry is a partial list of parameters to be passed to lumpedPlot
@@ -230,7 +245,7 @@ def getPlotTasksMultiRe(plotTasks: list[str], tensorDirsReAll: list[Path], xPred
             for Re in uniqueRe:                                                 # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                 xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
                 xPred = (xPredExpanded - xMean) / xStd                          # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                lumpedPred = predictTHP(model, name, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+                lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
                 tasksMultiRe.append([name, lumpedPred, tensorDirReAll, Re])     # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
     return tasksMultiRe
 

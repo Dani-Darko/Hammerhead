@@ -37,7 +37,7 @@ def NN(name: str,
        outputValid: torch.tensor,
        varName: str,
        tensorDir: Path,
-       maxEpochs: int = int(1e4),
+       maxEpochs: int = int(5e3),
        lossTarget: float = 1e-9,
        **kwargs) -> tuple[str, str, str, str]:
     """

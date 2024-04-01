@@ -31,6 +31,8 @@ import torch                                                                    
 def NN(name: str,
        featureSize: int,
        dimensionSize: int,
+       layers: int,
+       neurons: int,
        xPred: torch.tensor,
        outputMean: torch.tensor,
        outputStd: torch.tensor,
@@ -46,6 +48,8 @@ def NN(name: str,
     name : str                          Name of model (used for loading training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
+    layers: int                         Number of NN hidden layers
+    neurons: int                        Number of NN neurons per layer
     xPred  : torch.tensor               Feature tensor used for prediction
     outputMean : torch.tensor           Mean of output tensor
     outputStd : torch.tensor            Stadard deviation of the output tensor
@@ -59,7 +63,7 @@ def NN(name: str,
     """
     checkpoint = torch.load(tensorDir / name / f"{name}_{varName}.pt")          # Load the checkpoint of the model
     
-    network = Network(featureSize, dimensionSize)                               # Create instance of neural network class
+    network = Network(featureSize, dimensionSize, layers, neurons)              # Create instance of neural network class
     network.load_state_dict(checkpoint['modelState'])                           # Load the latest state of the model
     network.eval()                                                              # Evaluate current state of the network to enable prediction
     
@@ -165,6 +169,8 @@ def GP(name: str,
 
 def predictTHP(model: dict[str, Any],
                name: str,
+               layers: int,
+               neurons: int,
                xPred: torch.tensor,
                outputMean: dict[str, torch.tensor],
                outputStd: dict[str, torch.tensor],
@@ -178,6 +184,8 @@ def predictTHP(model: dict[str, Any],
     ----------
     model : dict                        Dictionary of current model attributes
     name : str                          Name of current model
+    layers: int                         Number of NN hidden layers
+    neurons: int                        Number of NN neurons per layer
     xPred : torch.tensor                Feature tensor used for prediction
     outputMean : dict                   Mean of output tensor
     outputStd : dict                    Stadard deviation of the output tensor
@@ -190,6 +198,7 @@ def predictTHP(model: dict[str, Any],
     """
     mlPrediction = [globals()[model["function"]](                           # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
                         name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
+                        layers=layers, neurons=neurons,
                         xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
                         varName=var, tensorDir=tensorDir, VTReduced=VTReduced.get(var))
                     for var in model["variables"]]
