@@ -18,7 +18,8 @@ from utilities.dataProcessing import (genericPoolManager,                       
                                       unstandardiseTensor)                      # Utilities -> Reverting standardised data into original (expanded) data
 from utilities.mlPrediction import (predictTHP,                                 # Utilities -> Calculate THP from BCV predictions
                                     maximiseTHP)                                # Utilities -> Calculate optimal features using a torch optimiser
-from utilities.plotFunctions import lumpedPlot                                  # Utilities -> Plotting tools
+from utilities.plotFunctions import (predictionPlot,                            # Utilities -> Plotting model predictions
+                                     lossPlot)                                  # Utilities -> Plotting per-variable training loss
 
 import utilities.mlTraining as train                                            # Utilities -> ML training process functions
 
@@ -149,7 +150,7 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
         print(f"No modes={trainingParams['modes']} tensor directories found in ./mlData/{domain} for prediction/plotting process!")
         return
     
-    plotDir = Path(f"./plots/{domain}")                                         # Directory where all plots are stored
+    plotDir = Path(f"./mlPlots/{domain}")                                       # Directory where all plots are stored
     xv, yv = np.linspace(0.001, 0.010, 30), np.linspace(2, 60, 30)              # X- and Y-value arrays used as input for the prediction tasks and for 3D surface plotting
     
     xPredExpandedArray1H = np.array(np.meshgrid(xv, yv), dtype=np.float32).T.reshape(-1, 2)  # Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
@@ -159,9 +160,12 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
                                                           trainingParams["layers"], trainingParams["neurons"])  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
     tasksMultiRe = getPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H, trainingParams["layers"], trainingParams["neurons"])  # Get a partial list of task arguments for all multi-Re scenarios
     
-    taskArgs = [[xv, yv, plotDir, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
-    taskFuncs = [lumpedPlot for _ in taskArgs]                                  # All function calls are made to a single function, create a list containing only that function for each element in taskArgs
-    genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", "Completed plotting of {} with Re={} harmonics={}")  # Send all tasks to the multi-threaded worker function
+    predPlotArgs = [[xv, yv, plotDir, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
+    lossPlotArgs = [[plotDir, plotParams, (tensorDir / plotTask)] for plotTask in (set(plotTasks) & {"lumped", "modal", "spatial"}) for tensorDir in tensorDirs]  # Task arguments for loss plot task, one task per tensorDir/modelName
+    taskFuncs = [predictionPlot for _ in predPlotArgs] + [lossPlot for _ in lossPlotArgs]  # Create a list containing function objects for each element in the two taskArgs lists
+    taskArgs = predPlotArgs + lossPlotArgs                                      # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+
+    genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", "Completed plotting {} of {} with Re={} harmonics={}")  # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
     
 def getPlotTasksSingleRe(plotTasks: list[str],
@@ -232,7 +236,7 @@ def getPlotTasksMultiRe(plotTasks: list[str],
     """
     tasksMultiRe = []                                                           # List of tasks, where each entry will be a partial list of parameters to be passed to lumpedPlot
     for tensorDirReAll in tqdm(tensorDirsReAll, desc="Predicting for multi-Re scenarios"):  # Iterate over all Re_All tensor directories previously identified by the corresponding single-Re function
-        uniqueRe = torch.unique(torch.load(tensorDirReAll / "xData.pt")["xExpanded"][:, -1])  # Get a tensor of unique Re values from the last column of the xExpanded tensor (where Re is a feature)
+        uniqueRe = torch.unique(torch.load(tensorDirReAll / "xData.pt")["xExpanded"][:, -1]).int()  # Get an integer tensor of unique Re values from the last column of the xExpanded tensor (where Re is a feature)
         VTReduced = torch.load(tensorDirReAll / "VTReduced.pt")                 # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
         xData = torch.load(tensorDirReAll / "xData.pt")                         # Load the xData dictionary of tensors
         xMean, xStd = xData["xMean"], xData["xStd"]                             # Extract the mean and standard deviation of the unstandardised xData
