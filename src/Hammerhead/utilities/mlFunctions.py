@@ -161,7 +161,7 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     tasksMultiRe = getPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H, trainingParams["layers"], trainingParams["neurons"])  # Get a partial list of task arguments for all multi-Re scenarios
     
     predPlotArgs = [[xv, yv, plotDir, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
-    lossPlotArgs = [[plotDir, plotParams, (tensorDir / plotTask)] for plotTask in (set(plotTasks) & {"lumped", "modal", "spatial"}) for tensorDir in tensorDirs]  # Task arguments for loss plot task, one task per tensorDir/modelName
+    lossPlotArgs = [[plotDir, plotParams, (tensorDir / plotTask)] for plotTask in (set(plotTasks) & {"lumped", "modal", "spatial"}) for tensorDir in tensorDirs if (tensorDir / plotTask).is_dir()]  # Task arguments for loss plot task, one task per tensorDir/modelName
     taskFuncs = [predictionPlot for _ in predPlotArgs] + [lossPlot for _ in lossPlotArgs]  # Create a list containing function objects for each element in the two taskArgs lists
     taskArgs = predPlotArgs + lossPlotArgs                                      # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
 
@@ -206,10 +206,15 @@ def getPlotTasksSingleRe(plotTasks: list[str],
         xPred = (xPredExpanded - xMean) / xStd                                  # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
         
         for name, model in [(task, models[task]) for task in plotTasks]:        # Iterate over all tasks specified in --plot, returning the name of the model for training, and its respective entry in the dictionary
-            dataMean = torch.load(tensorDir / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
-            dataStd = torch.load(tensorDir/ f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-            lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-            tasksSingleRe.append([name, lumpedPred, tensorDir])                 # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
+            try:
+                dataMean = torch.load(tensorDir / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
+                dataStd = torch.load(tensorDir/ f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
+                lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+                tasksSingleRe.append([name, lumpedPred, tensorDir])             # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
+            except FileNotFoundError as e:
+                pathParts = e.filename.split("/")
+                print(f"No available {pathParts[-2]} checkpoint found for prediction in {pathParts[-3]} (try --train {pathParts[-2]})")
+                
     return tasksSingleRe, tensorDirsReAll
             
 def getPlotTasksMultiRe(plotTasks: list[str],
@@ -243,14 +248,20 @@ def getPlotTasksMultiRe(plotTasks: list[str],
         xPredExpandedArray = xPredExpandedArray1H if int(tensorDirReAll.stem.split("_")[-1]) == 1 else xPredExpandedArray2H  # Deduce the number of harmonics from the current tensorDir name, and set it as the chosen xPredExpanded array
         
         for name, model in [(task, models[task]) for task in plotTasks]:        # Iterate over all tasks specified in --plot, returning the name of the model for training, and its respective entry in the dictionary
-            dataMean = torch.load(tensorDirReAll / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
-            dataStd = torch.load(tensorDirReAll / f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-            
-            for Re in uniqueRe:                                                 # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
-                xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
-                xPred = (xPredExpanded - xMean) / xStd                          # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-                tasksMultiRe.append([name, lumpedPred, tensorDirReAll, Re])     # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
+            try:
+                dataMean = torch.load(tensorDirReAll / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
+                dataStd = torch.load(tensorDirReAll / f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
+                
+                for Re in uniqueRe:                                             # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
+                    xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
+                    xPred = (xPredExpanded - xMean) / xStd                      # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
+                    lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+                    tasksMultiRe.append([name, lumpedPred, tensorDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
+                    
+            except FileNotFoundError as e:
+                pathParts = e.filename.split("/")
+                print(f"No available {pathParts[-2]} checkpoint found for prediction in {pathParts[-3]} (try --train {pathParts[-2]})")
+                
     return tasksMultiRe
 
 def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
