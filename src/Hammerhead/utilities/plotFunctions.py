@@ -19,9 +19,10 @@ from matplotlib import cm, rc                                                   
 from pathlib import Path                                                        # Others -> Path manipulation
 from typing import Optional, Union                                              # Others -> Python type hinting
 
-import torch                                                                    # Others -> Tensor manipulation functions
-import numpy as np                                                              # Others -> Array manipulation functions
 import matplotlib.pyplot as plt                                                 # Others -> Plotting tools
+import numpy as np                                                              # Others -> Array manipulation functions
+import pickle                                                                   # Others -> Storing matplotlib figure objects
+import torch                                                                    # Others -> Tensor manipulation functions
 
 ###########################################################################################################################################
 
@@ -109,6 +110,9 @@ def predictionPlot(xv: np.ndarray,
     ax.tick_params(axis='both', labelsize=10)                                   # Modify the tick label size
     ax.legend()                                                                 # Add a legend, containing the fixed parameter values label
     
+    with open(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}.plot', "wb") as plotFile:     # Open pickle file for binary writing ...
+        pickle.dump(fig, plotFile)                                              # ... store matploltib figure object
+        
     for azim in np.arange(20, 360, 45):                                         # Iterate over a range of azimuthal view angles, spanning a full circle in 45 degree increments, starting at 20 degrees
         ax.view_init(30, azim)                                                  # Set the 3D-axis viewing angle (vertical / elevation, horizontal / azimuthal)
         fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_azim_{azim}.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
