@@ -217,7 +217,7 @@ def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[fl
         print(f"\033[{lastPrintRows}A\033[J", end=None)                         # MESSAGE BOARD DISPLAY STEP: Print \033[nA (move up n rows) and \033[J (clear console from current row until end)
         lastPrintRows = len(statusBoard) + 7                                    # Update the printed row counter with the number of rows that are about to be printed (7 from table formatting and other counters)
         colWidths = [max([len(pid) for pid in statusBoard.keys()] + [3])]       # First column width is the dictionary key (PID), get maximum length of all PIDs in status board ([3] is minimum column width)
-        for idx, minWidth in enumerate([22, 6, 8, 9]):                          # Iterate over all following columns (and their min width), corresponding to list entries of matching PID key in status board dictionary
+        for idx, minWidth in enumerate([22, 6, 4, 7]):                          # Iterate over all following columns (and their min width), corresponding to list entries of matching PID key in status board dictionary
             colWidths.append(max([len(pinfo[idx]) for pinfo in statusBoard.values()] + [minWidth]))  # For each column compute the maximum width of the column's content, taking into account the minimum width
         colWidthsMax = np.maximum(colWidths, colWidthsMax)                      # To prevent repetitive table resizing, take element-wise maximum of all columns and always used the largest recorded column width
         
@@ -225,7 +225,7 @@ def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[fl
         statusBoardStr = [f"| {' | '.join([getattr(item, just)(width) for item, width, just in zip([key] + value, colWidthsMax, ['ljust']*3 + ['rjust']*2)])} |"  # Construct list of strings (one for each row), padding and aligning column content
                           for key, value in statusBoard.items()]                # ... one string is generated for each key-value pair in the dictionary
         print('\n'.join([hLineStr,                                              # Join and print all the above and below status board strings
-                         f"| {' | '.join([item.center(width) for item, width in zip(['PID', 'Unique Case Parameters', 'Status', 'TimeStep', 'ClockTime'], colWidthsMax)])} |",  # Table header row
+                         f"| {' | '.join([item.center(width) for item, width in zip(['PID', 'Unique Case Parameters', 'Status', 'Step', 'Elapsed'], colWidthsMax)])} |",  # Table header row
                          hLineStr,
                          *statusBoardStr,
                          hLineStr,
@@ -285,7 +285,7 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
             casePath.mkdir(parents=True)                                        # Create an empty directory for this case, which will be filled (either from baseCasePath or via OpenFOAM)
 
     if baseCasePath is not None:                                                # If a base case has been found, simulations will not need to run
-        messageQueue.put((pid, name, "Case already in database. Populating duplicates"))
+        messageQueue.put((pid, name, "Populating duplicates"))
         for singleCaseData in caseData:                                         # Iterate over all empty cases in caseData ...
             shutil.copytree(baseCasePath, singleCaseData[0], dirs_exist_ok=True)  # ... copying all contents from baseCasePath to the current empty case
             createAkFile(*singleCaseData)                                       # Also create a machine-readable file with the current singleCaseData parameter set (used by ML functions)
@@ -293,13 +293,13 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         return                                                                  # No more needs to be done, all non-unique cases were populated using existing data
 
     try:                                                                        # No existing valid cases were found, simulations will need to run (first case in caseData is used throughout)
-        messageQueue.put((pid, name, "Preparing case simulation files")) 
+        messageQueue.put((pid, name, "Preparing case files")) 
         populateBlockMeshEdges(hfmParams["domainType"], caseData[0][0], xArray, yArray)  # Update surface coordinates to match the shape specified by current parameter set
         updateVelocity(caseData[0][0], hfmParams, Re)                           # Update velocity and turbulence variables for the current Reynolds number 
         createAkFile(*caseData[0])                                              # Create a machine-readable file with the current case parameter set (used by ML functions)
-        messageQueue.put((pid, name, "Running blockMesh/stitchMesh"))
+        messageQueue.put((pid, name, "blockMesh/stitchMesh"))
         runMesh(caseData[0][0], openfoam)                                       # Run OpenFOAM blockMesh and stitchMesh, and rearrange mesh files for further OpenFOAM execution
-        messageQueue.put((pid, name, "Running chtMultiRegionSimpleFoam"))
+        messageQueue.put((pid, name, "chtMultiRegionSimpleFoam"))
         success = runOpenFOAM(caseData[0][0], openfoam)                         # Run OpenFOAM chtMultiRegionSimpleFoam in current case directory (record exit success/failure exit code)
         success = success and (caseData[0][0] / "postProcessing").exists()      # If no ./postProcessing subfolder exists, update success flag to False as failure must have occured elsewhere
     except KeyboardInterrupt:                                                   # Catch KeyboardInterrupt (raised when user enters Ctrl+C to stop process execution) in order to clean up
@@ -307,12 +307,12 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         raise                                                                   # Do not do anything else, the "finally" clause will carry out the clean-up and the exception is reported to the user
     finally:                                                                    # Perform final population operations here regardless of success or failure
         if success:                                                             # In case of success, populate all other cases using data computed by OpenFOAM for the first case
-            messageQueue.put((pid, name, "Simulation succeeded. Populating duplicates"))
+            messageQueue.put((pid, name, "Populating duplicates"))
             for singleCaseData in caseData[1:]:                                 # ... iterate over all cases in caseData (except for the first)
                     shutil.copytree(caseData[0][0], singleCaseData[0], dirs_exist_ok=True)  # .. copy contents of simulation directory to the current empty case
                     createAkFile(*singleCaseData)                               # ... also create a machine-readable file with the current singleCaseData parameter set (used by ML functions)
         else:                                                                   # In case of failure, move all logs to ./caseDatabase/failureLogs and delete all corresponding directories
-            messageQueue.put((pid, name, "Simulation failed. Backing up logs and cleaning up"))
+            messageQueue.put((pid, name, "Failed, cleaning up"))
             failureLogsDir = Path(f'./caseDatabase/failureLogs/{hfmParams["domainType"]}/{caseData[0][0].stem}/')  # Construct path where simulation log files will be copied to
             shutil.rmtree(failureLogsDir, ignore_errors=True)                   # Delete directory if it already exists
             failureLogsDir.mkdir(parents=True)                                  # Create new directory where the failure logs will be copied to
