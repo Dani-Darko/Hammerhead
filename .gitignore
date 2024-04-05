@@ -5,4 +5,4 @@ build/
 dist/
 src/Hammerhead/caseDatabase/
 src/Hammerhead/mlData/
-src/Hammerhead/plots/
+src/Hammerhead/mlPlots/
