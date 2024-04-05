@@ -268,7 +268,7 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
     None
     """
     pid = str(os.getpid())                                                      # Get the process ID as reported by the OS (this will differ for each process)
-    name = "A1={} A2={} k1={} k2={} Re={} (and {} duplicates)".format(*uniqueCase[0], len(uniqueCase) - 1)  # Construct the "name" of this process based on the case parameters and duplicate count
+    name = "A1={:.3f} A2={:.3f} k1={:2.0f} k2={:2.0f} Re={:4.0f} (and {:3.0f} duplicates)".format(*uniqueCase[0], len(uniqueCase) - 1)  # Construct the "name" of this process based on the case parameters and duplicate count
     baseCasePath = None                                                         # Path of the "base" case, if found, will be used to populate all other duplicates (and simulation will not need to run)
     caseData = []                                                               # List of paths and parameters for cases that are non-existent and need to be populated [[path, *params], ...]
     
