@@ -65,7 +65,7 @@ def NN(name: str,
     """
     checkpoint = torch.load(tensorDir / name / f"{name}_{varName}.pt")          # Load the checkpoint of the model
     
-    network = Network(featureSize, dimensionSize, layers, neurons)              # Create instance of neural network class
+    network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
     network.load_state_dict(checkpoint['modelState'])                           # Load the latest state of the model
     network.eval()                                                              # Evaluate current state of the network to enable prediction
     

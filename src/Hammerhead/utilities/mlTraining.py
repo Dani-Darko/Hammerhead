@@ -66,7 +66,7 @@ def NN(name: str,
     harmonics : str                     Number of harmonics that were used for training
     varName : str                       Variable name (used for post-training report)
     """
-    network = Network(featureSize, dimensionSize, layers, neurons)              # Create instance of neural network class
+    network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
     optimizer = torch.optim.RMSprop(                                            # Object to hold and update hyperparameter state of the model throughout training
         network.parameters(), momentum=0.75, lr=1e-4, weight_decay=1e-5)        # These parameters seem to work for this particular problem
     lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)
