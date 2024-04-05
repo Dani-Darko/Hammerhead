@@ -21,7 +21,7 @@ from utilities.mlClasses import (Network,                                       
 # IMPORTS: Others #########################################################################################################################
 
 from pathlib import Path                                                        # Others -> Path manipulation tools
-from typing import Any                                                          # Others -> Python type hinting
+from typing import Any, Optional                                                # Others -> Python type hinting
 
 import gpytorch                                                                 # Others -> Gaussian Process tools
 import torch                                                                    # Others -> Neural Network tools
@@ -39,7 +39,7 @@ def NN(name: str,
        varName: str,
        tensorDir: Path,
        VTReduced: torch.tensor = None,
-       **kwargs) -> torch.tensor:
+       **kwargs) ->  tuple[torch.tensor, None, None]:
     """
     Neural Network (NN) prediction process
     
@@ -59,7 +59,9 @@ def NN(name: str,
 
     Returns
     -------
-    outputTensor : torch.tensor         Prediction output tensor
+    outputDataTensor : torch.tensor     Prediction output tensor
+    outputUpperTensor : None            Upper confidence limit not computed by this model 
+    outputLowerTensor : None            Lower confidence limit not computed by this model
     """
     checkpoint = torch.load(tensorDir / name / f"{name}_{varName}.pt")          # Load the checkpoint of the model
     
@@ -71,9 +73,7 @@ def NN(name: str,
         data = network(xPred)                                                   # Produce the prediction
     dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
     
-    if name == "modal":                                                         # If running modal model prediction
-        return torch.mm(dataExpanded, VTReduced)                                # ... expand the output to spatial data
-    return dataExpanded                                                         # ... otherwise return the data as-is (lumped or spatial)
+    return torch.mm(dataExpanded, VTReduced) if name == "modal" else dataExpanded, None, None  # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
 
 def RBF(name: str,
         xPred: torch.tensor,
@@ -82,7 +82,7 @@ def RBF(name: str,
         varName: str,
         tensorDir: Path,
         VTReduced: torch.tensor,
-        **kwargs) ->  torch.tensor:
+        **kwargs) ->  tuple[torch.tensor, None, None]:
     """
     Radial Basis Function (RBF) interpolator prediction process
     
@@ -98,13 +98,15 @@ def RBF(name: str,
 
     Returns
     -------
-    outputTensor : torch.tensor         Prediction output tensor
+    outputDataTensor : torch.tensor     Prediction output tensor
+    outputUpperTensor : None            Upper confidence limit not computed by this model
+    outputLowerTensor : None            Lower confidence limit not computed by this model
     """
     rbfi = torch.load(tensorDir / name / f"{name}_{varName}.pt")                # Load the stored trained RBFI object (interally uses pickle)
     
     data = torch.from_numpy(rbfi(xPred.detach())).float()                       # Produce the prediction
     dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
-    return torch.mm(dataExpanded, VTReduced)                                    # Expand the output to spatial data
+    return torch.mm(dataExpanded, VTReduced), None, None                        # Expand the output to spatial data
     
 def GP(name: str,
        featureSize: int,
@@ -115,7 +117,7 @@ def GP(name: str,
        varName: str,
        tensorDir: Path,
        VTReduced: torch.tensor = None,
-       **kwargs) -> torch.tensor:
+       **kwargs) -> tuple[torch.tensor, torch.tensor, torch.tensor]:
     """
     Gaussian Process (GP) prediction process
     
@@ -133,7 +135,9 @@ def GP(name: str,
 
     Returns
     -------
-    outputTensor : torch.tensor     Prediction output tensor
+    outputDataTensor : torch.tensor     Prediction output mean tensor
+    outputUpperTensor : torch.tensor    Prediction output upper confidence limit tensor
+    outputLowerTensor : torch.tensor    Prediction output lower confidence limit tensor
     """
     trainingData = torch.load(tensorDir / name / f"{name}_{varName}_trainingData.pt")
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with
@@ -154,18 +158,10 @@ def GP(name: str,
         predictions = likelihood(*model(*[xPred for _ in range(dimensionSize)]))  # Produce the multi-output prediction including confidence region
 
     data = torch.column_stack([prediction.mean for prediction in predictions])  # Extract the mean value from the prediction
-    dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
-
-    # stanlow = torch.transpose(torch.stack([prediction.confidence_region()[0]
-    #                                                for submodel, prediction in zip(model.models, predictions)]),1,0)
-    # stanup = torch.transpose(torch.stack([prediction.confidence_region()[1]
-    #                                                for submodel, prediction in zip(model.models, predictions)]),1,0)
-    # up = stanup * datastd + datamean
-    # low = stanlow * datastd + datamean
-    # upExpanded = np.dot(up.detach().numpy(), VTReduced)
-    # lowExpanded = np.dot(low.detach().numpy(), VTReduced)
+    confidence = [torch.column_stack([prediction.confidence_region()[i] for prediction in predictions]) for i in range(2)]  # Extract the standardised upper and lower confidence limit tensors
+    tensorsExpanded = [unstandardiseTensor(tensor, outputMean, outputStd) for tensor in [data, *confidence]]  # Unstandardise (expand) the data and confidence limits
     
-    return torch.mm(dataExpanded, VTReduced)                                    # Expand the output to spatial data
+    return tuple(torch.mm(tensor, VTReduced) for tensor in tensorsExpanded)     # Expand the output to spatial data
 
 def predictTHP(model: dict[str, Any],
                name: str,
@@ -175,7 +171,7 @@ def predictTHP(model: dict[str, Any],
                outputMean: dict[str, torch.tensor],
                outputStd: dict[str, torch.tensor],
                tensorDir: Path,
-               VTReduced: dict[str, torch.tensor]) -> torch.tensor:
+               VTReduced: dict[str, torch.tensor]) -> list[Optional[torch.tensor]]:
     """
     Compute a Thermo-Hydraulic Performance (THP) prediction with the boundary
         conditions variables (BCV) of the specified model
@@ -194,7 +190,9 @@ def predictTHP(model: dict[str, Any],
 
     Returns
     -------
-    lumped : torch.tensor               Thermo-Hydraulic Performance evaluation
+    predictedTHPData : torch.tensor     Thermo-Hydraulic Performance evaluation
+    predictedTHPUpper : torch.tensor    Thermo-Hydraulic Performance evaluation upper confidence limit
+    predictedTHPLower : torch.tensor    Thermo-Hydraulic Performance evaluation lower confidence limit
     """
     mlPrediction = [globals()[model["function"]](                           # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
                         name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
@@ -202,9 +200,12 @@ def predictTHP(model: dict[str, Any],
                         xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
                         varName=var, tensorDir=tensorDir, VTReduced=VTReduced.get(var))
                     for var in model["variables"]]
+    mlPrediction = list(zip(*mlPrediction))                                 # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
+    mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
+    
     if name != "lumped":                                                    # If the current model isn't lumped ...
-            mlPrediction = lumpedDataCalculation(mlPrediction)              # Compute the Thermo-Hydraulic Performance (integral of advected heat flux and dissipation rate)
-    return mlPrediction[0] - mlPrediction[1]                                # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
+            mlPrediction = [(None if data is None else lumpedDataCalculation(data)) for data in mlPrediction]  # Compute the Thermo-Hydraulic Performance (integral of advected heat flux and dissipation rate)
+    return [(None if data is None else data[0] - data[1]) for data in mlPrediction]  # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
 
 def maximiseTHP(model: dict,
                 name: str,

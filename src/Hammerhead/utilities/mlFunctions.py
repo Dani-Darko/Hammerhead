@@ -209,8 +209,8 @@ def getPlotTasksSingleRe(plotTasks: list[str],
             try:
                 dataMean = torch.load(tensorDir / f"{model['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
                 dataStd = torch.load(tensorDir/ f"{model['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-                lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-                tasksSingleRe.append([name, lumpedPred, tensorDir])             # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
+                predictedTHP = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+                tasksSingleRe.append([name, predictedTHP, tensorDir])           # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
             except FileNotFoundError as e:
                 pathParts = e.filename.split("/")
                 print(f"No available {pathParts[-2]} checkpoint found for prediction in {pathParts[-3]} (try --train {pathParts[-2]})")
@@ -255,8 +255,8 @@ def getPlotTasksMultiRe(plotTasks: list[str],
                 for Re in uniqueRe:                                             # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                     xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
                     xPred = (xPredExpanded - xMean) / xStd                      # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                    lumpedPred = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-                    tasksMultiRe.append([name, lumpedPred, tensorDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
+                    predictedTHP = predictTHP(model, name, layers, neurons, xPred, dataMean, dataStd, tensorDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
+                    tasksMultiRe.append([name, predictedTHP, tensorDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
                     
             except FileNotFoundError as e:
                 pathParts = e.filename.split("/")

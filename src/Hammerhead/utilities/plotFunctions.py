@@ -30,7 +30,7 @@ def predictionPlot(xv: np.ndarray,
                    plotDir: Path,
                    plotParams: dict[str, Union[float, bool]],
                    modelName: str,
-                   lumpedPred: torch.tensor,
+                   predictedTHP: list[Optional[torch.tensor]],
                    tensorDir: Path,
                    Re: Optional[int] = None) -> tuple[str, str, int, int]:
     """
@@ -45,7 +45,7 @@ def predictionPlot(xv: np.ndarray,
     plotDir : Path                  Plot output storage directory
     plotParams : dict               Dictionary of plotting parameters
     modelName : str                 Name of model (used for labelling stored plots)
-    lumpedPred : torch.tensor       Tensor of predicted THP
+    predictedTHP : torch.tensor     List of predicted THP tensors [data, upper, lower]
     tensorDir : Path                Trained tensor data storage directory
     Re : int                        Reynolds number, only passed when Re is a feature
 
@@ -59,6 +59,8 @@ def predictionPlot(xv: np.ndarray,
     plotDir = plotDir / tensorDir.stem / modelName                              # Construct plot directory of the form ./mlPlots / {domain} / Re_{Re}_modes_{modes}_harmonics_{harmonics} / {modelName}
     plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
     
+    lumpedPred = predictedTHP[0]                                                # Extract THP data from list of predicted data for convenience
+    lumpedLimits = None if predictedTHP[1] is None else predictedTHP[1:]        # Extract limits (as a single None if none are available) from list of predicted data
     xExpanded = torch.load(tensorDir / "xData.pt")["xExpanded"]                 # Load xExpanded data from xData.pt dictionary of tensors
     lumpedDataExpanded = torch.load(tensorDir / "lumpedDataExpanded.pt")        # Load the unstandardised lumped data dictionary of tensors
     harmonics = int(tensorDir.stem.split("_")[-1])                              # Deduce whether harmonics is 1 or 2 from the tensorDir name
@@ -83,18 +85,23 @@ def predictionPlot(xv: np.ndarray,
     lumpedBaseline = lumpedDataExpanded["lumpedT"][baselineIdx] - lumpedDataExpanded["lumpedp"][baselineIdx]  # Calculate the Thermo-Hydraulic Performance of the baseline case (A1=0, k1=0)    
     lumpedReal = (lumpedDataExpanded["lumpedT"] - lumpedDataExpanded["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data, normalised against the baseline case
     lumpedPred = lumpedPred / lumpedBaseline                                    # Normalise predicted THP against the baseline case
-    
+    lumpedLimits = None if lumpedLimits is None else [limit / lumpedBaseline for limit in lumpedLimits]  # Also normalise both limits if they exist
+
     rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
 
     X, Y = np.meshgrid(xv, yv)                                                  # Transform the x, y values into a set of coordinates for a surface plot
-    Z = lumpedPred.reshape(len(xv), len(yv))                                    # Reshape lumpedPred to match the X, Y grid shape
+    Zpred = lumpedPred.reshape(len(xv), len(yv))                                # Reshape lumpedPred to match the X, Y grid shape
+    Zlims = None if lumpedLimits is None else [limit.reshape(len(xv), len(yv)) for limit in lumpedLimits]  # If limits exist, also reshape them to same shape as ZPred
     
     fig = plt.figure()                                                          # Create a figure (this will contain a single 3D axis for plotting)
     ax = fig.add_subplot(projection="3d")                                       # Add an axis with a 3D projection to the figure
     ax.scatter(*xExpanded.T, lumpedReal, c="k", label=f"$Re={Re},A_2={A2},k_2={k2}$")  # Plot the high fidelity data as black dots and set the fixed parameters label
-    surf = ax.plot_surface(X, Y, Z, cmap=cm.jet, alpha=0.65, lw=0, antialiased=False)  # Plot the predicted lumped data as a surface with a colour gradient
+    surf = ax.plot_surface(X, Y, Zpred, cmap=cm.jet, alpha=0.65, lw=0, antialiased=False)  # Plot the predicted lumped data as a surface with a colour gradient
     bar = fig.colorbar(surf, ax=ax, extend="min", shrink=0.75)                  # Show a colourbar for the predicted lumped data surface colour gradient values
+    if Zlims is not None:                                                       # If surfaces for limits also exist ...
+        for Zlim in Zlims:                                                      # ... iterate over both upper and lower limits ...
+            ax.plot_surface(X, Y, Zlim, color="k", alpha=0.2, lw=0, antialiased=False)  # ... plot a surface for both limits
     
     bar.set_label(r'$Q$', rotation=0, fontsize=14)                              # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
     ax.set_xlabel("$A_1$")                                                      # Set the x-axis label as A1
