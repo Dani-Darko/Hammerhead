@@ -200,4 +200,4 @@ def updateVelocity(casePath: Path, hfmParams: dict[str, float], Re: int, C_mu: f
 ###############################################################################
 
 if __name__ == "__main__":
-    raise RuntimeError("This script is not intended for execution. Instead, execute hammehead.py from the parent directory.")
+    raise RuntimeError("This script is not intended for execution. Instead, execute hammerhead.py from the parent directory.")
