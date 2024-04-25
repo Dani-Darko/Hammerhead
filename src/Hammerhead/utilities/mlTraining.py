@@ -26,8 +26,7 @@ import torch                                                                    
 
 ###########################################################################################################################################
 
-def NN(name: str,
-       featureSize: int,
+def NN(featureSize: int,
        dimensionSize: int,
        layers: int,
        neurons: int,
@@ -36,16 +35,15 @@ def NN(name: str,
        xValid: torch.tensor,
        outputValid: torch.tensor,
        varName: str,
-       tensorDir: Path,
+       outputDir: Path,
        maxEpochs: int = int(5e3),
        lossTarget: float = 1e-9,
-       **kwargs) -> tuple[str, str, str, str]:
+       **kwargs) -> None:
     """
     Neural Network (NN) training process
     
     Parameters
     ----------
-    name : str                          Name of model (used for labelling stored training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
     layers: int                         Number of NN hidden layers
@@ -55,16 +53,13 @@ def NN(name: str,
     xValid : torch.tensor               Feature tensor used for validation (overfitting)
     outputValid : torch.tensor          Output data tensor used for validation (overfitting)
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data output (storage) directory
+    outputDir : str                     Trained data output (storage) directory
     maxEpochs : int                     Maximum number of training iterations (if lossTarget is not reached)
     lossTarget : float                  Loss target to terminate training
 
     Returns
     -------
-    name : str                          Name of model (used for post-training report, needs to be returned because of asynchronous training)
-    Re : str                            Reynolds number (used for post-training report)
-    harmonics : str                     Number of harmonics that were used for training
-    varName : str                       Variable name (used for post-training report)
+    None
     """
     network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
     optimizer = torch.optim.RMSprop(                                            # Object to hold and update hyperparameter state of the model throughout training
@@ -85,81 +80,61 @@ def NN(name: str,
         if lossTrainList[-1] < lossTarget:                                      # If loss target has been reached ...
             break                                                               # ... stop the training process
 
-    outputDir = tensorDir / name                                                # Model state will be stored in a tensorDir subdirectory labelled by the model name
     outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
     torch.save({'epoch': epoch,
                 'modelState': network.state_dict(),
                 'optimizerState': optimizer.state_dict(),
                 'lossTrain': lossTrainList,
                 'lossValid': lossValidList},
-                outputDir / f"{name}_{varName}.pt")                             # Store the obtained network checkpoint
-    
-    _, Re, _, _, _, harmonics = tensorDir.stem.split("_")
-    return name, Re, harmonics, varName
+                outputDir / f"{varName}.pt")                                    # Store the obtained network checkpoint
 
-def RBF(name: str,
-        xTrain: torch.tensor,
+def RBF(xTrain: torch.tensor,
         outputTrain: torch.tensor,
         varName: str,
-        tensorDir: Path,
-        **kwargs) -> tuple[str, str, str, str]:
+        outputDir: Path,
+        **kwargs) -> None:
     """
     Radial Basis Function (RBF) interpolator training process
     
     Parameters
     ----------
-    name : str                          Name of model (used for labelling stored training data)
     xTrain : torch.tensor               Feature tensor used for training
     outputTrain : torch.tensor          Output data tensor used for training
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data output (storage) directory
+    outputDir : str                     Trained data output (storage) directory
     
     Returns
     -------
-    name : str                          Name of model (used for post-training report, needs to be returned because of asynchronous training)
-    Re : str                            Reynolds number (used for post-training report)
-    harmonics : str                     Number of harmonics that were used for training
-    varName : str                       Variable name (used for post-training report)
+    None
     """
     rbfi = RBFInterpolator(xTrain, outputTrain, kernel='inverse_multiquadric', epsilon=3)  # Apply Radial Basis Function Interpolator (RBFI) from scipy onto the feature and output training tensors
-    outputDir = tensorDir / name                                                # Model state will be stored in a tensorDir subdirectory labelled by the model name
     outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
-    torch.save(rbfi, outputDir / f"{name}_{varName}.pt")                        # Store the trained RBFI object (internally uses pickle)
+    torch.save(rbfi, outputDir / f"{varName}.pt")                               # Store the trained RBFI object (internally uses pickle)
     
-    _, Re, _, _, _, harmonics = tensorDir.stem.split("_")
-    return name, Re, harmonics, varName
-    
-def GP(name: str,
-       featureSize: int,
+def GP(featureSize: int,
        dimensionSize: int,
        xTrain: torch.tensor,
        outputTrain: torch.tensor,
        varName: str,
-       tensorDir: Path,
+       outputDir: Path,
        epochs: int = 2,  # 40
-       **kwargs) -> tuple[str, str, str, str]:
+       **kwargs) -> None:
     """
     Gaussian Process (GP) training process
     
     Parameters
     ----------
-    name : str                          Name of model (used for labelling stored training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
     xTrain : torch.tensor               Feature tensor used for training
     outputTrain : torch.tensor          Output data tensor used for training
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data output (storage) directory
+    outputDir : str                     Trained data output (storage) directory
     epochs : int                        Number of training iterations
 
     Returns
     -------
-    name : str                          Name of model (used for post-training report, needs to be returned because of asynchronous training)
-    Re : str                            Reynolds number (used for post-training report)
-    harmonics : str                     Number of harmonics that were used for training
-    varName : str                       Variable name (used for post-training report)
-    epochs : int                        Number of training iterations performed
-    finalLossTrain : float              Training loss evaluated at the final iteration
+    None
     """
     likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood() for _ in range(dimensionSize)]  # Gpytorch trains for a single output, a list of likelihoods is produced for a multi-output model
     modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], featureSize) for i in range(dimensionSize)]  # Gpytorch trains for a single output, a list of models is produced for a multi-output model
@@ -187,20 +162,16 @@ def GP(name: str,
             optimizer.step()                                                    # Hyperparameter update from the computed gradient
             lossList.append(loss)                                               # Store the loss from training error
     
-    outputDir = tensorDir / name                                                # Model state will be stored in a tensorDir subdirectory labelled by the model name
     outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
     torch.save({'epoch': epochs,
                 'modelState': model.state_dict(),
                 'optimizerState': optimizer.state_dict(),
                 'lossTrain': lossList},
-               outputDir / f"{name}_{varName}.pt")                              # Store the obtained model checkpoint
+               outputDir / f"{varName}.pt")                                     # Store the obtained model checkpoint
     
     torch.save({'xTrain': xTrain,
                 'outputTrain': outputTrain},
-               outputDir / f"{name}_{varName}_trainingData.pt")                 # Store training tensors for evaluation
-    
-    _, Re, _, _, _, harmonics = tensorDir.stem.split("_")
-    return name, Re, harmonics, varName
+               outputDir / f"{varName}_trainingData.pt")                        # Store training tensors for evaluation
     
 ###############################################################################
 

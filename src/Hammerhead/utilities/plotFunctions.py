@@ -28,12 +28,10 @@ import torch                                                                    
 
 def predictionPlot(xv: np.ndarray,
                    yv: np.ndarray,
-                   plotDir: Path,
                    plotParams: dict[str, Union[float, bool]],
-                   modelName: str,
                    predictedTHP: list[Optional[torch.tensor]],
-                   tensorDir: Path,
-                   Re: Optional[int] = None) -> tuple[str, str, int, int]:
+                   stateDictDir: Path,
+                   Re: Optional[int] = None) -> None:
     """
     Machine learning prediction surface vs high-fidelity scatter data plot
         of the computed Thermo-Hydraulic Performance over two fixed shape
@@ -43,22 +41,19 @@ def predictionPlot(xv: np.ndarray,
     ----------
     xv : array_like                 Array of feature 1 (A1) values for plotting purposes
     yv : array_like                 Array of feature 2 (k1) values for plotting purposes
-    plotDir : Path                  Plot output storage directory
     plotParams : dict               Dictionary of plotting parameters
-    modelName : str                 Name of model (used for labelling stored plots)
     predictedTHP : torch.tensor     List of predicted THP tensors [data, upper, lower]
-    tensorDir : Path                Trained tensor data storage directory
+    stateDictDir : Path             Trained tensor data storage directory
     Re : int                        Reynolds number, only passed when Re is a feature
 
     Returns
     -------
-    plotType : str                  Name of plot type (used for formatting return output, here "prediction")
-    modelName : str                 Name of model (used for formatting return output)
-    Re : int                        Reynolds number (used for formatting return output)
-    harmonics : int                 Number of harmonics
+    None
     """
-    plotDir = plotDir / tensorDir.stem / modelName                              # Construct plot directory of the form ./mlPlots / {domain} / Re_{Re}_modes_{modes}_harmonics_{harmonics} / {modelName}
+    pivotIdx = stateDictDir.parts.index("mlData")
+    plotDir = Path(*stateDictDir.parts[:pivotIdx], "mlPlots", *stateDictDir.parts[pivotIdx + 1:])  # Construct plot directory (same format as state dict path, but mlData is now mlPlots)
     plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
+    tensorDir = Path(*stateDictDir.parts[:pivotIdx + 3])                        # Reconstruct outer tensorDir from state dict path
     
     lumpedPred = predictedTHP[0]                                                # Extract THP data from list of predicted data for convenience
     lumpedLimits = None if predictedTHP[1] is None else predictedTHP[1:]        # Extract limits (as a single None if none are available) from list of predicted data
@@ -117,35 +112,29 @@ def predictionPlot(xv: np.ndarray,
         ax.view_init(30, azim)                                                  # Set the 3D-axis viewing angle (vertical / elevation, horizontal / azimuthal)
         fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_azim_{azim}.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
-    return "prediction", modelName, Re, harmonics
 
-def lossPlot(plotDir: Path,
-             plotParams: dict[str, Union[float, bool]],
-             checkpointDir: Path) -> tuple[str, str, int, int]:
+def lossPlot(plotParams: dict[str, Union[float, bool]],
+             stateDictDir: Path) -> None:
     """
     Per-variable training loss plot 
     
     Parameters
     ----------
-    plotDir : Path                  Plot output storage directory
     plotParams : dict               Dictionary of plotting parameters
-    checkpointDir : Path            Trained model checkpoint directory
+    stateDictDir : Path            Trained tensor data storage directory
 
     Returns
     -------
-    plotType : str                  Name of plot type (used for formatting return output, here "loss")
-    modelName : str                 Name of model (used for formatting return output)
-    Re : int                        Reynolds number (used for formatting return output)
-    harmonics : int                 Number of harmonics
+    None
     """
-    tensorDirName, modelName = checkpointDir.parts[-2:]
-    plotDir = plotDir / tensorDirName / modelName                               # Construct plot directory of the form ./mlPlots / {domain} / Re_{Re}_modes_{modes}_harmonics_{harmonics} / {modelName}
+    pivotIdx = stateDictDir.parts.index("mlData")
+    plotDir = Path(*stateDictDir.parts[:pivotIdx], "mlPlots", *stateDictDir.parts[pivotIdx + 1:])  # Construct plot directory (same format as state dict path, but mlData is now mlPlots)
     plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
     
     rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
         
-    for checkpointFile in checkpointDir.glob("*.pt"):                           # Iterate over all checkpoint files in the model checkpoint directory
+    for checkpointFile in stateDictDir.glob("*.pt"):                            # Iterate over all checkpoint files in the model checkpoint directory
         fig, ax = plt.subplots()                                                # Create new figure with single subplot
         ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
         ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set")  # Load and plot validation set loss
@@ -155,9 +144,6 @@ def lossPlot(plotDir: Path,
         ax.legend()                                                             # Add a legend, containing the fixed parameter values label
         fig.savefig(plotDir / f"loss_{checkpointFile.stem}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources
-
-    _, Re, _, _, _, harmonics = tensorDirName.split("_") 
-    return "loss", modelName, Re, harmonics
 
 ###############################################################################
 

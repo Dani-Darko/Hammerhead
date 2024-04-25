@@ -41,7 +41,7 @@ class Network(torch.nn.Module):
         outputs = [neurons for _ in range(hiddenLayers + 1)] + [dimensionSize]  # List of output features for each layer (except for the output layer which uses dimensionSize)
         
         linearSteps = [torch.nn.Linear(i, o) for i, o in zip(inputs, outputs)]  # List of all linear modules constructed using the known number of input and output features per layer
-        sigmoidStep = torch.nn.Sigmoid()                                        # Intermedate function executed between each linear layer, taking input from each linear layer and passing its output to the next linear layer
+        sigmoidStep = torch.nn.Sigmoid()                                        # Intermediate function executed between each linear layer, taking input from each linear layer and passing its output to the next linear layer
         
         layers = sum([[linearStep, sigmoidStep] for linearStep in linearSteps], [])[:-1]  # Construct a list of all modules that will be called in order, with a sigmoidStep between each linearStep
         self.model = torch.nn.Sequential(*layers)                               # Construct a sequential module container, where the output of each module is passed as an input for the next module

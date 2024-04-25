@@ -31,13 +31,11 @@ import torch                                                                    
 def NN(name: str,
        featureSize: int,
        dimensionSize: int,
-       layers: int,
-       neurons: int,
        xPred: torch.tensor,
        outputMean: torch.tensor,
        outputStd: torch.tensor,
        varName: str,
-       tensorDir: Path,
+       stateDictDir: Path,
        VTReduced: torch.tensor = None,
        **kwargs) ->  tuple[torch.tensor, None, None]:
     """
@@ -48,13 +46,11 @@ def NN(name: str,
     name : str                          Name of model (used for loading training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
-    layers: int                         Number of NN hidden layers
-    neurons: int                        Number of NN neurons per layer
     xPred  : torch.tensor               Feature tensor used for prediction
     outputMean : torch.tensor           Mean of output tensor
     outputStd : torch.tensor            Stadard deviation of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data storage directory
+    stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
 
     Returns
@@ -63,9 +59,10 @@ def NN(name: str,
     outputUpperTensor : None            Upper confidence limit not computed by this model 
     outputLowerTensor : None            Lower confidence limit not computed by this model
     """
-    checkpoint = torch.load(tensorDir / name / f"{name}_{varName}.pt")          # Load the checkpoint of the model
+    checkpoint = torch.load(stateDictDir / f"{varName}.pt")                     # Load the checkpoint of the model
+    _, _, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")            # Infer number of layers and neurons from state dict path
     
-    network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
+    network = Network(featureSize, dimensionSize, int(neurons), int(layers))    # Create instance of neural network class
     network.load_state_dict(checkpoint['modelState'])                           # Load the latest state of the model
     network.eval()                                                              # Evaluate current state of the network to enable prediction
     
@@ -75,12 +72,11 @@ def NN(name: str,
     
     return torch.mm(dataExpanded, VTReduced) if name == "modal" else dataExpanded, None, None  # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
 
-def RBF(name: str,
-        xPred: torch.tensor,
+def RBF(xPred: torch.tensor,
         outputMean: torch.tensor,
         outputStd: torch.tensor,
         varName: str,
-        tensorDir: Path,
+        stateDictDir: Path,
         VTReduced: torch.tensor,
         **kwargs) ->  tuple[torch.tensor, None, None]:
     """
@@ -93,7 +89,7 @@ def RBF(name: str,
     outputMean : torch.tensor           Mean of output tensor
     outputStd : torch.tensor            Stadard deviation of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data storage directory
+    stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
 
     Returns
@@ -102,20 +98,19 @@ def RBF(name: str,
     outputUpperTensor : None            Upper confidence limit not computed by this model
     outputLowerTensor : None            Lower confidence limit not computed by this model
     """
-    rbfi = torch.load(tensorDir / name / f"{name}_{varName}.pt")                # Load the stored trained RBFI object (interally uses pickle)
+    rbfi = torch.load(stateDictDir / f"{varName}.pt")                           # Load the stored trained RBFI object (interally uses pickle)
     
     data = torch.from_numpy(rbfi(xPred.detach())).float()                       # Produce the prediction
     dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
     return torch.mm(dataExpanded, VTReduced), None, None                        # Expand the output to spatial data
     
-def GP(name: str,
-       featureSize: int,
+def GP(featureSize: int,
        dimensionSize: int,
        xPred: torch.tensor,
        outputMean: torch.tensor,
        outputStd: torch.tensor,
        varName: str,
-       tensorDir: Path,
+       stateDictDir: Path,
        VTReduced: torch.tensor = None,
        **kwargs) -> tuple[torch.tensor, torch.tensor, torch.tensor]:
     """
@@ -123,14 +118,13 @@ def GP(name: str,
     
     Parameters
     ----------
-    name : str                          Name of model (used for loading training data)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
     xPred  : torch.tensor               Feature tensor used for prediction
     outputMean : torch.tensor           Mean of output tensor
     outputStd : torch.tensor            Stadard deviation of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
-    tensorDir : str                     Trained data storage directory
+    stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
 
     Returns
@@ -139,7 +133,7 @@ def GP(name: str,
     outputUpperTensor : torch.tensor    Prediction output upper confidence limit tensor
     outputLowerTensor : torch.tensor    Prediction output lower confidence limit tensor
     """
-    trainingData = torch.load(tensorDir / name / f"{name}_{varName}_trainingData.pt")
+    trainingData = torch.load(stateDictDir / f"{varName}_trainingData.pt")
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with
     
     likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood() for _ in range(dimensionSize)]  # Gpytorch works with a single output, a list of likelihoods is produced for a multi-output model
@@ -149,7 +143,7 @@ def GP(name: str,
     model = gpytorch.models.IndependentModelList(*modelPrev)                    # Create a Gaussian Process model from modelPrev (list of sub-models)
     likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood).train()  # Create likelihood object from list of previously created list of likelyhoods 
     
-    model.load_state_dict(torch.load(tensorDir / name / f"{name}_{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
+    model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
     
     model.eval()                                                               # Evaluate current state of the model to enable prediction
     likelihood.eval()                                                          # Evaluate current state of the likelihood to enable prediction
@@ -163,14 +157,12 @@ def GP(name: str,
     
     return tuple(torch.mm(tensor, VTReduced) for tensor in tensorsExpanded)     # Expand the output to spatial data
 
-def predictTHP(model: dict[str, Any],
-               name: str,
-               layers: int,
-               neurons: int,
+def predictTHP(name: str,
+               model: dict[str, Any],
                xPred: torch.tensor,
                outputMean: dict[str, torch.tensor],
                outputStd: dict[str, torch.tensor],
-               tensorDir: Path,
+               stateDictDir: Path,
                VTReduced: dict[str, torch.tensor]) -> list[Optional[torch.tensor]]:
     """
     Compute a Thermo-Hydraulic Performance (THP) prediction with the boundary
@@ -178,14 +170,12 @@ def predictTHP(model: dict[str, Any],
 
     Parameters
     ----------
-    model : dict                        Dictionary of current model attributes
     name : str                          Name of current model
-    layers: int                         Number of NN hidden layers
-    neurons: int                        Number of NN neurons per layer
+    model : dict                        Dictionary of current model attributes
     xPred : torch.tensor                Feature tensor used for prediction
     outputMean : dict                   Mean of output tensor
     outputStd : dict                    Stadard deviation of the output tensor
-    tensorDir : pathlib.Path            Trained data storage directory
+    stateDictDir : pathlib.Path         Trained data storage directory
     VTReduced : dict                    Dictionary of PCA left eigenvectors, one for each BCV
 
     Returns
@@ -196,9 +186,8 @@ def predictTHP(model: dict[str, Any],
     """
     mlPrediction = [globals()[model["function"]](                           # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
                         name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
-                        layers=layers, neurons=neurons,
                         xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
-                        varName=var, tensorDir=tensorDir, VTReduced=VTReduced.get(var))
+                        varName=var, stateDictDir=stateDictDir, VTReduced=VTReduced.get(var))
                     for var in model["variables"]]
     mlPrediction = list(zip(*mlPrediction))                                 # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
     mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
