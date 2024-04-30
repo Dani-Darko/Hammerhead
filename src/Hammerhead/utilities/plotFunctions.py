@@ -20,6 +20,7 @@ from pathlib import Path                                                        
 from typing import Optional, Union                                              # Others -> Python type hinting
 
 import matplotlib.pyplot as plt                                                 # Others -> Plotting tools
+import matplotlib as mpl                                                        # Others -> Low-level matplotlib objects
 import numpy as np                                                              # Others -> Array manipulation functions
 import pickle                                                                   # Others -> Storing matplotlib figure objects
 import torch                                                                    # Others -> Tensor manipulation functions
@@ -29,7 +30,8 @@ import torch                                                                    
 def predictionPlot(xv: np.ndarray,
                    yv: np.ndarray,
                    plotParams: dict[str, Union[float, bool]],
-                   predictedTHP: list[Optional[torch.tensor]],
+                   predictedTHPQual: list[Optional[torch.tensor]],
+                   predictedTHPQuant: list[Optional[torch.tensor]],
                    stateDictDir: Path,
                    Re: Optional[int] = None) -> None:
     """
@@ -42,7 +44,8 @@ def predictionPlot(xv: np.ndarray,
     xv : array_like                 Array of feature 1 (A1) values for plotting purposes
     yv : array_like                 Array of feature 2 (k1) values for plotting purposes
     plotParams : dict               Dictionary of plotting parameters
-    predictedTHP : torch.tensor     List of predicted THP tensors [data, upper, lower]
+    predictedTHPQual : torch.tensor     List of predicted THP tensors [data, upper, lower] for qualitative 3D plot
+    predictedTHPQuant : torch.tensor    List of predicted THP tensors [data, upper, lower] for quantitative 2D plot
     stateDictDir : Path             Trained tensor data storage directory
     Re : int                        Reynolds number, only passed when Re is a feature
 
@@ -55,8 +58,10 @@ def predictionPlot(xv: np.ndarray,
     plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
     tensorDir = Path(*stateDictDir.parts[:pivotIdx + 3])                        # Reconstruct outer tensorDir from state dict path
     
-    lumpedPred = predictedTHP[0]                                                # Extract THP data from list of predicted data for convenience
-    lumpedLimits = None if predictedTHP[1] is None else predictedTHP[1:]        # Extract limits (as a single None if none are available) from list of predicted data
+    lumpedPred3D = predictedTHPQual[0]                                          # Extract THP data from list of predicted qualitative data for convenience (for 3D plot)
+    lumpedPred2D = predictedTHPQuant[0]                                         # Also extract THP data from list of predicted quantitative data (for 2D plot)
+    lumpedLimits3D = None if predictedTHPQual[1] is None else predictedTHPQual[1:]  # Extract limits (as a single None if none are available) from list of predicted qualitative data
+    lumpedLimits2D = None if predictedTHPQuant[1] is None else predictedTHPQuant[1:]  # Also extract limits from list of predicted quantitative data
     xExpanded = torch.load(tensorDir / "xData.pt")["xExpanded"]                 # Load xExpanded data from xData.pt dictionary of tensors
     lumpedDataExpanded = torch.load(tensorDir / "lumpedDataExpanded.pt")        # Load the unstandardised lumped data dictionary of tensors
     harmonics = int(tensorDir.stem.split("_")[-1])                              # Deduce whether harmonics is 1 or 2 from the tensorDir name
@@ -74,21 +79,27 @@ def predictionPlot(xv: np.ndarray,
     if harmonics == 2:                                                          # If harmonics=2, dimensions are too big for plotting, they will need to be shortened to match the form of harmonics=1
         plotIdx = (xExpanded[:, 1] == A2) & (xExpanded[:, 3] == k2)             # ... get a boolean tensor used to select row indices where columns 1 and 3 match the specified A2 and k2 values in plotParams.yaml
         xExpanded = torch.index_select(xExpanded[plotIdx], 1, torch.tensor([0, 2]))  # ... keep only the rows where A2 and k2 match the specified parameters, and then remove their respective (now redundant) columns (keep 0->A1 and 2->k1 only)
+        lumpedPred2D = lumpedPred2D[plotIdx]                                    # ... filter out all non-harmonics=2 data from predicted THP 2D data
+        lumpedLimits2D = None if lumpedLimits2D is None else [limit[plotIdx] for limit in lumpedLimits2D]  # ... as above, also filter out the non-harmonics=2 data from the limits
         for key in lumpedDataExpanded.keys():                                   # ... also iterate over all tensors in the lumpedDataExpanded directory
             lumpedDataExpanded[key] = lumpedDataExpanded[key][plotIdx]          # ... and select only the relevant rows (but keeping columns unmodified, as they are only a single column)
       
     baselineIdx = torch.all(xExpanded == torch.zeros(2), axis=1)                # Get the row index where A1=0 and k1=0 to use as a baseline value
     lumpedBaseline = lumpedDataExpanded["lumpedT"][baselineIdx] - lumpedDataExpanded["lumpedp"][baselineIdx]  # Calculate the Thermo-Hydraulic Performance of the baseline case (A1=0, k1=0)    
     lumpedReal = (lumpedDataExpanded["lumpedT"] - lumpedDataExpanded["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data, normalised against the baseline case
-    lumpedPred = lumpedPred / lumpedBaseline                                    # Normalise predicted THP against the baseline case
-    lumpedLimits = None if lumpedLimits is None else [limit / lumpedBaseline for limit in lumpedLimits]  # Also normalise both limits if they exist
+    lumpedPred3D = lumpedPred3D / lumpedBaseline                                # Normalise predicted qualitative THP against the baseline case
+    lumpedPred2D = lumpedPred2D / lumpedBaseline                                # Normalise predicted quantitative THP against the baseline case
+    lumpedLimits3D = None if lumpedLimits3D is None else [limit / lumpedBaseline for limit in lumpedLimits3D]  # Also normalise both qualitative limits if they exist
+    lumpedLimits2D = None if lumpedLimits2D is None else [limit / lumpedBaseline for limit in lumpedLimits2D]  # Also normalise both qualitative limits if they exist
 
     rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
+    
+    # 3D (qualitative) prediction plot:
 
     X, Y = np.meshgrid(xv, yv)                                                  # Transform the x, y values into a set of coordinates for a surface plot
-    Zpred = lumpedPred.reshape(len(xv), len(yv))                                # Reshape lumpedPred to match the X, Y grid shape
-    Zlims = None if lumpedLimits is None else [limit.reshape(len(xv), len(yv)) for limit in lumpedLimits]  # If limits exist, also reshape them to same shape as ZPred
+    Zpred = lumpedPred3D.reshape(len(xv), len(yv))                              # Reshape lumpedPred to match the X, Y grid shape
+    Zlims = None if lumpedLimits3D is None else [limit.reshape(len(xv), len(yv)) for limit in lumpedLimits3D]  # If limits exist, also reshape them to same shape as ZPred
     
     fig = plt.figure()                                                          # Create a figure (this will contain a single 3D axis for plotting)
     ax = fig.add_subplot(projection="3d")                                       # Add an axis with a 3D projection to the figure
@@ -99,7 +110,7 @@ def predictionPlot(xv: np.ndarray,
         for Zlim in Zlims:                                                      # ... iterate over both upper and lower limits ...
             ax.plot_surface(X, Y, Zlim, color="k", alpha=0.2, lw=0, antialiased=False)  # ... plot a surface for both limits
     
-    bar.set_label(r'$Q$', rotation=0, fontsize=14)                              # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
+    bar.set_label(r'$\dot{Q}$', rotation=0, fontsize=14)                        # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
     ax.set_xlabel("$A_1$")                                                      # Set the x-axis label as A1
     ax.set_ylabel("$k_1$")                                                      # Set the y-axis label as k1
     ax.tick_params(axis='both', labelsize=10)                                   # Modify the tick label size
@@ -111,6 +122,22 @@ def predictionPlot(xv: np.ndarray,
     for azim in np.arange(20, 360, 45):                                         # Iterate over a range of azimuthal view angles, spanning a full circle in 45 degree increments, starting at 20 degrees
         ax.view_init(30, azim)                                                  # Set the 3D-axis viewing angle (vertical / elevation, horizontal / azimuthal)
         fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_azim_{azim}.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
+    plt.close(fig)                                                              # Close the figure and free up resources
+    
+    # 2D (quantitative) prediction plot:
+    
+    fig, ax = plt.subplots(figsize=(6.4, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    x_lin = np.arange(len(lumpedReal))                                          # X-axis is a monotonically increasing sequence, one entry per predicted value
+    y_mid = ((lumpedPred2D + lumpedReal) / 2)[:, 0]                             # Y-midpoints between predicted and HFM values (for errorbar plot, actual points will not be visible)
+    y_err = np.abs((lumpedPred2D - lumpedReal) / 2)[:, 0]                       # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
+    ax.errorbar(x_lin, y_mid, xerr=0, yerr=y_err, fmt="k", marker="", ls="", alpha=0.2)  # Plot errorbar first (no points, just residuals), semi-transparent, highlighting the difference between predicted and HFM values
+    ax.plot(lumpedPred2D, "m-", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction")  # Plot predicted values as a line plot
+    ax.plot(lumpedReal, "kx", label=f"HFM data")                                # Plot HFM values as black crosses
+    ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
+    ax.set_ylabel(r'$\dot{Q}$', fontsize=14)                                    # Set y-label
+    ax.tick_params(axis='both', labelsize=10)                                   # Adjust tick label font size
+    ax.legend()                                                                 # Finally, draw legend
+    fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_2D.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
 
 def lossPlot(plotParams: dict[str, Union[float, bool]],
@@ -144,6 +171,69 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
         ax.legend()                                                             # Add a legend, containing the fixed parameter values label
         fig.savefig(plotDir / f"loss_{checkpointFile.stem}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources
+        
+def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
+                    modelDir: Path,
+                    lossTable: np.ndarray) -> None:
+    """
+    Per-architecture ML loss benchmark summary plot
+    
+    Parameters
+    ----------
+    plotParams : dict               Dictionary of plotting parameters
+    modelDir : Path                 Trained model directory (containing multiple architectures)
+    lossTable : array_like          Loss table array with columns [valSplit, layers, neurons, var, dataArr]
+
+    Returns
+    -------
+    None
+    """
+    pivotIdx = modelDir.parts.index("mlData")
+    plotDir = Path(*modelDir.parts[:pivotIdx], "mlPlots", *modelDir.parts[pivotIdx + 1:])  # Construct plot directory (same format as state dict path, but mlData is now mlPlots)
+    plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
+    
+    rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
+    rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
+    
+    def _format_and_save_fig(fig, ax, xLabel, xTicks, figName, **kwargs):
+        ax.set_xlabel(xLabel, fontsize=14)                                      # Set the x-axis label as neuron count
+        ax.set_ylabel("Loss ($L^2$-norm)", fontsize=14)                         # Set the y-axis label as loss
+        ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
+        ax.set_xticks(xData)                                                    # Only show ticks for existing values
+        fig.savefig(plotDir / figName, bbox_inches='tight', **kwargs)           # Save the generated figure as a PDF
+        plt.close(fig)                                                          # Close the figure and free up resources
+    
+    for var in np.unique(lossTable[:, 3]):                                      # For each unique flow variable in the array, two plots will be created
+        lossTableVar = lossTable[lossTable[:, 3] == var]                        # Filter table such that it now only contains entries for the current flow variable
+        
+        for freeVarName, freeVarIdx, xVarName, xVarIdx, xVarDType, xVarWidth in zip(["valSplit", "neurons"], [0, 2],
+                                                                                    ["neurons", "valSplit"], [2, 0], [int, float], [0.9, 0.04]):
+            fig, ax = plt.subplots(figsize=(6.4, 3))                                # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
+            uniqueFreeVar = sorted(np.unique(lossTableVar[:, freeVarIdx]))          # Identify and sort all unique free variables (valSplit or neurons)
+            uniqueLayers = sorted(np.unique(lossTableVar[:, 1]))                    # Identify and sort all unique layer numbers
+            for freeVar, colour in zip(uniqueFreeVar, mpl.colormaps['jet'](np.linspace(0, 1, len(uniqueFreeVar)))):  # Identify each unique valSplit with a different colour
+                for layers, linestyle in zip(uniqueLayers, ["solid", "dotted", "dashed", "dashdot"]):  # Identify each unique layer count with a different linestyle
+                    freeValLayerIdx = (lossTableVar[:, freeVarIdx] == freeVar) & (lossTableVar[:, 1] == layers)  # Identify which filtered table indices correspond to this valSplit-Layer combination
+                    xData = lossTableVar[freeValLayerIdx, xVarIdx].astype(xVarDType)  # Extract ordered list of neurons (x-positions)
+                    sortedIdx = np.argsort(xData)                                   # Identify order of element indices that would return a sorted array (for plotting data in order)
+                    losses = lossTableVar[freeValLayerIdx, 4]                       # Extract corresponding array of loss arrays (per-sample)
+                    lossMean = np.array([np.mean(loss, axis=-1) for loss in losses], dtype=float)  # Compute corresponding list of mean losses (y-positions)
+                    ax.plot(xData[sortedIdx], lossMean[sortedIdx], label=fr"{freeVarName} $={freeVar}$, layers $={layers}$", color=colour, marker="x", linestyle=linestyle, alpha=0.8)  # Plot per-valSplit/Layer line for final loss vs neuron count
+                    
+                    figInner, axInner = plt.subplots(figsize=(6.4, 3))              # Create an inner figure, containing only a single line and showing per-architecture loss distribution
+                    axInner.plot(xData[sortedIdx], lossMean[sortedIdx], color=colour, linestyle=linestyle, label=fr"{freeVarName} $={freeVar}$, layers $={layers}$")  # Plot line as before (violin plot cannot connect lines)
+                    violingParts = axInner.violinplot(losses, xData, showmeans=True, widths=xVarWidth)  # Also plot violin plot, showing minima, maxima, means and the data distribution)
+                    for key, value in violingParts.items():                         # For each part of the violin plot
+                        if key == "bodies":                                         # If the part is "bodies", this is a list of bodies
+                            for body in value:                                      # Change the face colour of each body
+                                body.set_facecolor(colour)
+                        else:                                                       # Otherwise, each item is a single object
+                            value.set_color(colour)                                 # Change its colour to match the line plot
+                    axInner.legend(loc="upper right")                               # Add a legend to the axis (inside) upper right corner
+                    _format_and_save_fig(figInner, axInner, xVarName.capitalize(), xData, f"mlBenchmark_x{xVarName.capitalize()}_{var}_{freeVarName}={freeVar}_layers={layers}.pdf")
+                
+            legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), ncol=3)  # Add legend outside of axis, and split into columns based on number of entries
+            _format_and_save_fig(fig, ax, xVarName.capitalize(), xData, f"mlBenchmark_x{xVarName.capitalize()}_{var}.pdf", bbox_extra_artists=[legend])
 
 ###############################################################################
 

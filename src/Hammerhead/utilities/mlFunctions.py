@@ -19,7 +19,8 @@ from utilities.dataProcessing import (genericPoolManager,                       
 from utilities.mlPrediction import (predictTHP,                                 # Utilities -> Calculate THP from BCV predictions
                                     maximiseTHP)                                # Utilities -> Calculate optimal features using a torch optimiser
 from utilities.plotFunctions import (predictionPlot,                            # Utilities -> Plotting model predictions
-                                     lossPlot)                                  # Utilities -> Plotting per-variable training loss
+                                     lossPlot,                                  # Utilities -> Plotting per-variable training loss
+                                     mlBenchmarkPlot)                           # Utilities -> Plotting per-NN-architecture loss benchmark
 
 import utilities.mlTraining as train                                            # Utilities -> ML training process functions
 
@@ -28,6 +29,7 @@ import utilities.mlTraining as train                                            
 from pathlib import Path                                                        # Others -> Path manipulation
 from subprocess import call, DEVNULL                                            # Others -> External process manipulation
 from tqdm import tqdm                                                           # Others -> Progress bar
+from typing import Any                                                          # Others -> Python type hinting
 
 import numpy as np                                                              # Others -> Array manipulation functions
 import random                                                                   # Others -> Random sampling
@@ -205,8 +207,9 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     
     predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
     lossPlotArgs = getLossPlotTaskArgs(plotTasks, tensorDirs, plotParams)       # Get list of task arguments for plotting per-variable loss
-    taskFuncs = [predictionPlot for _ in predPlotArgs] + [lossPlot for _ in lossPlotArgs]  # Create a list containing function objects for each element in the two taskArgs lists
-    taskArgs = predPlotArgs + lossPlotArgs                                      # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+    benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
+    taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
 
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", None)      # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
@@ -235,12 +238,12 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
     for tensorDir in tqdm(sorted(tensorDirs), desc="Predicting for single-Re scenarios"):  # Iterate over all tensor directories previously matching requirements loaded from trainingParams.yaml
 
         if tensorDir.stem.startswith("Re_All"):                                 # If tensor directory starts with Re_All, it is a multi-Re scenario that won't be processed here
-            tensorDirsReAll.append(tensorDir)                                   # ... add it to a list that will be passed to the corresonding multi-Re function
+            tensorDirsReAll.append(tensorDir)                                   # ... add it to a list that will be passed to the corresponding multi-Re function
             continue                                                            # ... and move on to the next tensor directory
             
         VTReduced = torch.load(tensorDir / "VTReduced.pt")                      # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
         xData = torch.load(tensorDir / "xData.pt")                              # Load the xData dictionary of tensors
-        xMean, xStd = xData["xMean"], xData["xStd"]                             # Extract the mean and standard deviation of the unstandardised xData
+        x, xMean, xStd = xData["x"], xData["xMean"], xData["xStd"]              # Extract the mean and standard deviation of the unstandardised xData, as well as the standardised xData
         xPredExpanded = torch.from_numpy(xPredExpandedArray1H if int(tensorDir.stem.split("_")[-1]) == 1 else xPredExpandedArray2H)  # Deduce the number of harmonics from the current tensorDir name, and convert the corresponding array to a tensor
         xPred = (xPredExpanded - xMean) / xStd                                  # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
         
@@ -249,11 +252,12 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
                 try:
                     dataMean = torch.load(tensorDir / f"{models[modelName]['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
                     dataStd = torch.load(tensorDir/ f"{models[modelName]['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-                    predictedTHP = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-                    tasksSingleRe.append([predictedTHP, stateDictDir])          # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
+                    predictedTHPQual = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
+                    predictedTHPQuant = predictTHP(modelName, models[modelName], x, dataMean, dataStd, stateDictDir, VTReduced)  # Also carry out prediction for the 2D quantitative plots
+                    tasksSingleRe.append([predictedTHPQual, predictedTHPQuant, stateDictDir])  # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
                 except FileNotFoundError as e:
                     pathParts = e.filename.split("/")
-                    print(f"No available {pathParts[-2]} checkpoint found for prediction in {pathParts[-3]} (try --train {pathParts[-2]})")
+                    print(f"No available {pathParts[-1]} checkpoint found for prediction in {Path(*pathParts[:-1])} (try --train {pathParts[-3]})")
                 
     return tasksSingleRe, tensorDirsReAll
             
@@ -280,7 +284,7 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
         uniqueRe = torch.unique(torch.load(tensorDirReAll / "xData.pt")["xExpanded"][:, -1]).int()  # Get an integer tensor of unique Re values from the last column of the xExpanded tensor (where Re is a feature)
         VTReduced = torch.load(tensorDirReAll / "VTReduced.pt")                 # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
         xData = torch.load(tensorDirReAll / "xData.pt")                         # Load the xData dictionary of tensors
-        xMean, xStd = xData["xMean"], xData["xStd"]                             # Extract the mean and standard deviation of the unstandardised xData
+        x, xMean, xStd = xData["x"], xData["xMean"], xData["xStd"]              # Extract the mean and standard deviation of the unstandardised xData, as well as the standardised xData
         xPredExpandedArray = xPredExpandedArray1H if int(tensorDirReAll.stem.split("_")[-1]) == 1 else xPredExpandedArray2H  # Deduce the number of harmonics from the current tensorDir name, and set it as the chosen xPredExpanded array
         
         for modelName in plotTasks:                                             # Iterate over all tasks specified in --plot
@@ -292,8 +296,9 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
                     for Re in uniqueRe:                                             # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
                         xPred = (xPredExpanded - xMean) / xStd                      # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                        predictedTHP = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments
-                        tasksMultiRe.append([predictedTHP, stateDictDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
+                        predictedTHPQual = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
+                        predictedTHPQuant = predictTHP(modelName, models[modelName], x, dataMean, dataStd, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
+                        tasksMultiRe.append([predictedTHPQual, predictedTHPQuant, stateDictDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
 
                 except FileNotFoundError as e:
                     pathParts = e.filename.split("/")
@@ -319,11 +324,52 @@ def getLossPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task loss plot function arguments
     """
     lossPlotTaskArgs = []
-    for plotTask in (set(plotTasks) & {"lumped", "modal", "spatial"}):          # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
-        for tensorDir in tensorDirs:                                            # Iterate over all available tensor directories
+    plotTasks = set(plotTasks) & {"lumped", "modal", "spatial"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    for tensorDir in tqdm(tensorDirs, desc="Preparing loss plot data"):         # Iterate over all available tensor directories
+        for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
                 if stateDictDir.is_dir():                                       # If the state dict path is a valid directory
                     lossPlotTaskArgs.append([plotParams, stateDictDir])         # Add it to the list of arguments (each item in list represents one list of arguments, first is plotParams, second is stateDictDir path)
+    return lossPlotTaskArgs
+    
+def getBenchmarkPlotTaskArgs(plotTasks: list[str],
+                             tensorDirs: list[Path],
+                             plotParams: dict[str, Any]) -> list[dict[str, Any], Path]:
+    """
+    Scans the mlData directory tree for valid paths for which ML benchmark
+        plots need to be generated, and returns per-task benchmark plot
+        function arguments
+    
+    Parameters
+    ----------
+    plotTasks : list                    List of models to train / plot
+    tensorDirs : list                   List of tensor directories
+    plotParams : dict                   Dictionary of plotting parameters from YAML file
+
+    Returns
+    -------
+    lossPlotTaskArgs : list             List of per-task benchmark plot function arguments
+    """
+    lossPlotTaskArgs = []
+    plotTasks = set(plotTasks) & {"lumped", "modal", "spatial"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
+        for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
+        
+            lossTable = {}
+            for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
+                if stateDictDir.is_dir():                                       # If the state dict path is a valid directory
+                    _, valSplit, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
+                    for varStateDict in stateDictDir.glob("*.pt"):              # for each variable inside the state dict folder
+                        key = (valSplit, layers, neurons, varStateDict.stem)    # set dictionary key as the current NN architecture and flow variable
+                        loss = torch.load(varStateDict)["lossTrain"][-1]        # extract the last loss from the variable state dictionary
+                        if key in lossTable:                                    # if this combination of NN architecture and flow variable has been seen before, a list of loss values already exists
+                            lossTable[key].append(loss)                         # ... therefore, append to the list
+                        else:                                                   # if this combination is new ...
+                            lossTable[key] = [loss]                             # ... a list of per-sample losses needs to be created (including the now first-seen loss)
+                            
+            if lossTable:                                                       # if the loss table isn't empty, we can convert it to an array
+                lossTableTemp = [[*key, np.array(value)] for key, value in lossTable.items() if len(value) > 0]  # convert dictionary to a list of lists with columns [valSplit, layers, neurons, var, dataArr] (discarding any empty entries)
+                lossPlotTaskArgs.append([plotParams, tensorDir / plotTask, np.array(lossTableTemp, dtype=object)])  # the temporary loss table is converted to an unstructured array of objects and will be an argument passed to the plot function
     return lossPlotTaskArgs
     
 def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
