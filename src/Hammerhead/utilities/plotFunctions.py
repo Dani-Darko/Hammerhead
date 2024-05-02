@@ -98,7 +98,7 @@ def predictionPlot(xv: np.ndarray,
     # 3D (qualitative) prediction plot:
 
     X, Y = np.meshgrid(xv, yv)                                                  # Transform the x, y values into a set of coordinates for a surface plot
-    Zpred = lumpedPred3D.reshape(len(xv), len(yv))                              # Reshape lumpedPred to match the X, Y grid shape
+    Zpred = lumpedPred3D.reshape(len(xv), len(yv)).T                            # Reshape lumpedPred to match the X, Y grid shape
     Zlims = None if lumpedLimits3D is None else [limit.reshape(len(xv), len(yv)) for limit in lumpedLimits3D]  # If limits exist, also reshape them to same shape as ZPred
     
     fig = plt.figure()                                                          # Create a figure (this will contain a single 3D axis for plotting)
