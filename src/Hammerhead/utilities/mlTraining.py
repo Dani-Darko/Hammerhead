@@ -36,75 +36,8 @@ def NN(featureSize: int,
        outputValid: torch.tensor,
        varName: str,
        outputDir: Path,
-       maxEpochs: int = int(3.5e4),
-       lossTarget: float = 1e-9,
-       **kwargs) -> None:
-    """
-    Neural Network (NN) training process
-    
-    Parameters
-    ----------
-    featureSize : int                   Number of features in input tensor
-    dimensionSize : int                 Dimension of the output tensor
-    layers: int                         Number of NN hidden layers
-    neurons: int                        Number of NN neurons per layer
-    xTrain : torch.tensor               Feature tensor used for training
-    outputTrain : torch.tensor          Output data tensor used for training
-    xValid : torch.tensor               Feature tensor used for validation (overfitting)
-    outputValid : torch.tensor          Output data tensor used for validation (overfitting)
-    varName : str                       Variable name (used for labelling stored training data)
-    outputDir : str                     Trained data output (storage) directory
-    maxEpochs : int                     Maximum number of training iterations (if lossTarget is not reached)
-    lossTarget : float                  Loss target to terminate training
-
-    Returns
-    -------
-    None
-    """
-    lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)  
-    
-    epochList, modelStateList, optimStateList, lossTrainOutList, lossValidOutList = [], [], [], [], []
-    for i in range(dimensionSize):
-        lossTrainList, lossValidList = [], []                                       # History of all computed losses during training  
-        network = Network(featureSize, 1, neurons, layers)                          # Create instance of neural network class
-        optimizer = torch.optim.RMSprop(                                            # Object to hold and update hyperparameter state of the model throughout training
-            network.parameters(), lr=9e-4, momentum=0.8)                            # These parameters seem to work for this particular problem
-        for epoch in range(maxEpochs):                                              # Start the training, for a maximum of maxEpoch iterations
-            yPred = network(xTrain)                                                 # Produce a prediction from training features
-            lTrain = lossFunc(yPred, outputTrain[:,i].unsqueeze(1))                                   # Compare prediction with training data through MSE
-            lossTrainList.append(lTrain.item())                                     # Store the loss from training error
-            v = network(xValid)                                                     # Produce a prediction from validation features
-            lVal = lossFunc(v, outputValid[:,i].unsqueeze(1))                                         # Compare prediction with validation data through MSE
-            lossValidList.append(lVal.item())                                       # Store the loss from validation error
-            optimizer.zero_grad()                                                   # Reset the gradient for the backpropagation
-            lTrain.backward()                                                       # Compute the gradient on the training prediction
-            optimizer.step()                                                        # Hyperparameter update from the computed gradient
-            if lossTrainList[-1] < lossTarget:                                      # If loss target has been reached ...
-                break                                                               # ... stop the training process
-        modelStateList.append(network.state_dict())
-        optimStateList.append(optimizer.state_dict())
-        lossTrainOutList.append(lossTrainList)
-        lossValidOutList.append(lossValidList)
-
-    outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
-    torch.save({'modelState': modelStateList,
-                'optimizerState': optimStateList,
-                'lossTrain': lossTrainOutList,
-                'lossValid': lossValidOutList},
-                outputDir / f"{varName}.pt")                                    # Store the obtained network checkpoint
-
-def NNJoint(featureSize: int,
-       dimensionSize: int,
-       layers: int,
-       neurons: int,
-       xTrain: torch.tensor,
-       outputTrain: torch.tensor,
-       xValid: torch.tensor,
-       outputValid: torch.tensor,
-       varName: str,
-       outputDir: Path,
        maxEpochs: int = int(9e4),
-       lossTarget: float = 1e-9,
+       lossTarget: float = 1e-6,
        **kwargs) -> None:
     """
     Neural Network (NN) training process

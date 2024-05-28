@@ -252,42 +252,6 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
     for checkpointFile in stateDictDir.glob("*.pt"):                            # Iterate over all checkpoint files in the model checkpoint directory
         if checkpointFile == stateDictDir / "optimalFeatureHistory.pt":
            continue
-        for i in range(5):
-            fig, ax = plt.subplots()                                                # Create new figure with single subplot
-            ax.plot(torch.load(checkpointFile)["lossTrain"][i], c="m", label="Training set")  # Load and plot training set loss
-            ax.plot(torch.load(checkpointFile)["lossValid"][i], c="c", label="Validation set")  # Load and plot validation set loss
-            ax.set_xlabel("Epoch")                                                  # Set the x-axis label as epoch
-            ax.set_ylabel("Loss ($L^2$-norm)")                                      # Set the y-axis label as loss
-            ax.set_yscale('log')
-            ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
-            ax.legend()                                                             # Add a legend, containing the fixed parameter values label
-            fig.savefig(plotDir / f"loss_{checkpointFile.stem}_{i}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
-            plt.close(fig)                                                          # Close the figure and free up resources
-
-def lossPlotJoint(plotParams: dict[str, Union[float, bool]],
-             stateDictDir: Path) -> None:
-    """
-    Per-variable training loss plot 
-    
-    Parameters
-    ----------
-    plotParams : dict               Dictionary of plotting parameters
-    stateDictDir : Path            Trained tensor data storage directory
-
-    Returns
-    -------
-    None
-    """
-    pivotIdx = stateDictDir.parts.index("mlData")
-    plotDir = Path(*stateDictDir.parts[:pivotIdx], "mlPlots", *stateDictDir.parts[pivotIdx + 1:])  # Construct plot directory (same format as state dict path, but mlData is now mlPlots)
-    plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
-    
-    rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
-    rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
-        
-    for checkpointFile in stateDictDir.glob("*.pt"):                            # Iterate over all checkpoint files in the model checkpoint directory
-        if checkpointFile == stateDictDir / "optimalFeatureHistory.pt":
-           continue
         fig, ax = plt.subplots()                                                # Create new figure with single subplot
         ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
         ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set")  # Load and plot validation set loss
