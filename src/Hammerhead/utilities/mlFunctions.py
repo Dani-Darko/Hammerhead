@@ -20,7 +20,8 @@ from utilities.mlPrediction import (predictTHP,                                 
                                     maximiseTHP)                                # Utilities -> Calculate optimal features using a torch optimiser
 from utilities.plotFunctions import (predictionPlot,                            # Utilities -> Plotting model predictions
                                      lossPlot,                                  # Utilities -> Plotting per-variable training loss
-                                     mlBenchmarkPlot)                           # Utilities -> Plotting per-NN-architecture loss benchmark
+                                     mlBenchmarkPlot,                           # Utilities -> Plotting per-NN-architecture loss benchmark
+                                     historyPlot)
 
 import utilities.mlTraining as train                                            # Utilities -> ML training process functions
 
@@ -42,31 +43,51 @@ bcvNames = ["inletU", "inletT", "inletp", "outletU", "outletT", "outletp"]      
 thpNames = ["lumpedT", "lumpedp"]                                               # Thermo-Hydraulic Performance (THP) variable names used by lumped model
 
 models = {
-    "kriging": {
-        "dimensionType": "modal",
-        "dimensionSize": None,
-        "variables":     bcvNames,
+    "lgp": {
+        "dimensionType": "lumped",
+        "dimensionSize": 1,
+        "variables":     thpNames,
         "function":      "GP"},
-    "lumped": {
+    "lnn": {
         "dimensionType": "lumped",
         "dimensionSize": 1,
         "variables":     thpNames,
         "function":      "NN"},
-    "modal": {
+    "lrbf": {
+        "dimensionType": "lumped",
+        "dimensionSize": 1,
+        "variables":     thpNames,
+        "function":      "RBF"},
+    "mgp": {
+        "dimensionType": "modal",
+        "dimensionSize": None,
+        "variables":     bcvNames,
+        "function":      "GP"},
+    "mnn": {
         "dimensionType": "modal",
         "dimensionSize": None,
         "variables":     bcvNames,
         "function":      "NN"},
-    "rbf": {
+    "mrbf": {
         "dimensionType": "modal",
         "dimensionSize": None,
         "variables":     bcvNames,
         "function":      "RBF"},
-    "spatial": {
+    "sgp": {
         "dimensionType": "spatial",
         "dimensionSize": 101,
         "variables":     bcvNames,
-        "function":      "NN"}}
+        "function":      "GP"},
+    "snn": {
+        "dimensionType": "spatial",
+        "dimensionSize": 101,
+        "variables":     bcvNames,
+        "function":      "NN"},
+    "srbf": {
+        "dimensionType": "spatial",
+        "dimensionSize": 101,
+        "variables":     bcvNames,
+        "function":      "RBF"}}
 
 def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
     """
@@ -98,7 +119,7 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
     neuronsPad = max([len(str(neurons)) for neurons in trainingParams["neurons"]])  # compute neurons string padding size to accommodate largest requested neuron number
     samplesPad = len(str(trainingParams["samples"] - 1))                        # compute padded string size for number of samples
     
-    for model in ["kriging", "modal", "rbf"]:                                   # These models have parameters that depend on data loaded from trainingParams, iterate over them
+    for model in ["mgp", "mnn", "mrbf"]:                                        # These models have parameters that depend on data loaded from trainingParams, iterate over them
         models[model]["dimensionSize"] = trainingParams["modes"]                # ... for each model, update the dimensionSize to be the number of modes specified in trainingParams
     
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
@@ -137,35 +158,46 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
         for n in tqdm(range(trainingParams["samples"]), desc="Processing samples", leave=False):  # Repeat training "samples" times, each time using a different random validationSplit seed and different initial hyperparameters
             for validationSplit in (valPBar := tqdm(trainingParams["validationSplit"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
                 valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
-                validSize = int(np.floor(validationSplit * dataSize))               # Compute the size of the validation data set, default is 35% of full data set for validation
-                indices = random.sample(range(dataSize), k=dataSize)                # Get a randomly arranged list of indices for the full data set
-                trainIdx, validIdx = indices[validSize:], indices[:validSize]       # Split all indices into two groups: indices that will address the training and the validation data sets
+                validSize = int(np.floor(validationSplit * dataSize))           # Compute the size of the validation data set, default is 35% of full data set for validation
+                BoundaryMaxIdx = [list(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                BoundaryMinIdx = [list(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                indexSequence = list(np.arange(dataSize))
+                for BMaxIdx in BoundaryMaxIdx:
+                    indexSequence = [item for item in indexSequence if (item not in BMaxIdx)]
+                for BMinIdx in BoundaryMinIdx:
+                    indexSequence = [item for item in indexSequence if (item not in BMinIdx)]
+                indices = random.sample(indexSequence, k=len(indexSequence))    # Get a randomly arranged list of indices for the full data set
+                trainIdx, validIdx = indices[validSize:], indices[:validSize]   # Split all indices into two groups: indices that will address the training and the validation data sets
+                for BMaxIdx in BoundaryMaxIdx:
+                    trainIdx = trainIdx + BMaxIdx
+                for BMinIdx in BoundaryMinIdx:
+                    trainIdx = trainIdx + BMinIdx
+                
+                xTrain = tensors["x"][trainIdx, :]                              # Select the training cases from the xData tensor
+                xValid = tensors["x"][validIdx, :]                              # Select the validation cases from the xData tensor
 
-                xTrain = tensors["x"][trainIdx, :]                                  # Select the training cases from the xData tensor
-                xValid = tensors["x"][validIdx, :]                                  # Select the validation cases from the xData tensor
-
-                for modelName in (modelPBar := tqdm(trainTasks, leave=False)):      # Iterate over all tasks specified in --train (with labelled progress bar)
-                    modelPBar.set_description(f"Processing model={modelName}")      # Update progress bar with current model
+                for modelName in (modelPBar := tqdm(trainTasks, leave=False)):  # Iterate over all tasks specified in --train (with labelled progress bar)
+                    modelPBar.set_description(f"Processing model={modelName}")  # Update progress bar with current model
                     for var in (varPBar := tqdm(models[modelName]["variables"], leave=False)):  # Also iterate over all variables available for this model (with labelled progress bar)
-                        varPBar.set_description(f"Processing var={var}")            # Update progress bar with current flow variable
+                        varPBar.set_description(f"Processing var={var}")        # Update progress bar with current flow variable
                         outputTrain = tensors[ models[modelName]["dimensionType"] ][ var ][trainIdx, :]  # ... compute the output training tensor
                         outputValid = tensors[ models[modelName]["dimensionType"] ][ var ][validIdx, :]  # ... compute the output validation tensor
-                        if models[modelName]["function"] == "NN":                   # If model is a neural network, we need to also iterate over requested layers/neurons
+                        if models[modelName]["function"] == "NN":               # If model is a neural network, we need to also iterate over requested layers/neurons
                             for layers in (layersPBar := tqdm(trainingParams["layers"], leave=False)):  # Iterate over all requested NN layer numbers (with labelled progress bar)
                                 layersPBar.set_description(f"Processing layers={layers}")  # Update progress bar with current NN layer number
                                 for neurons in (neuronsPBar := tqdm(trainingParams["neurons"], leave=False)):  # Iterate over all requested NN neuron numbers (with labelled progress bar)
                                     neuronsPBar.set_description(f"Processing neurons={neurons}")  # Update progress bar with current NN neuron number
-                                    targetDir = "_".join(                           # construct string of target model state dictionary directory (innermost)
+                                    targetDir = "_".join(                       # construct string of target model state dictionary directory (innermost)
                                         [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
                                          f"layers_{layers:0{layersPad}d}",
                                          f"neurons_{neurons:0{neuronsPad}d}",
                                          f"n_{n:0{samplesPad}d}"])
                                     _callTrain(layers = layers, neurons = neurons)  # call model-specific ML training function (layers and neurons are NN-specific kwargs)
-                        else:                                                       # if model is not a neural network, no need to loop over neurons/layers
-                            targetDir = "_".join(                                   # construct string of target model state dictionary directory (innermost)
+                        else:                                                   # if model is not a neural network, no need to loop over neurons/layers
+                            targetDir = "_".join(                               # construct string of target model state dictionary directory (innermost)
                                         [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
                                          f"n_{n:0{samplesPad}d}"])
-                            _callTrain()                                            # call model-specific ML training function
+                            _callTrain()                                        # call model-specific ML training function
    
 def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     """
@@ -188,7 +220,7 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     plotParams = loadyaml("plotParams")                                         # Load plotting parameters from plotParams.yaml
     plotParams["useTex"] = plotParams["useTex"] and not bool(call("tex --help", shell=True, stdout=DEVNULL, stderr=DEVNULL))  # If text rendering with TeX is enabled, check that TeX is present on the system and update the params dict accordingly
     trainingParams = loadyaml("trainingParams")                                 # Also load settings from the trainingParams.yaml
-    for model in ["kriging", "modal", "rbf"]:                                   # These models have parameters that depend on data loaded from trainingParams, iterate over them
+    for model in ["mgp", "mnn", "mrbf"]:                                        # These models have parameters that depend on data loaded from trainingParams, iterate over them
         models[model]["dimensionSize"] = trainingParams["modes"]                # ... for each model, update the dimensionSize to be the number of modes specified in trainingParams (if no other function has done this yet)
         
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
@@ -202,14 +234,16 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     xPredExpandedArray1H = np.array(np.meshgrid(xv, yv), dtype=np.float32).T.reshape(-1, 2)  # Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
     xPredExpandedArray2H = np.insert(xPredExpandedArray1H, [1, 2], [plotParams["A2"], plotParams["k2"]], axis=1)  # Array of unstandardised (expanded) x-values used for prediction for a 2-harmonic scenario
     
-    tasksSingleRe, tensorDirsReAll = getPredPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
-    tasksMultiRe = getPredPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
+    #tasksSingleRe, tensorDirsReAll = getPredPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
+    #tasksMultiRe = getPredPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
     
-    predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
+    #predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe] #+ tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
     lossPlotArgs = getLossPlotTaskArgs(plotTasks, tensorDirs, plotParams)       # Get list of task arguments for plotting per-variable loss
-    benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
-    taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
-    taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+    #benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
+    #taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    #taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+    taskFuncs = sum([[fn for _ in args] for fn, args in zip([lossPlot], [lossPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    taskArgs = lossPlotArgs                 # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
 
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", None)      # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
@@ -252,8 +286,8 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
                 try:
                     dataMean = torch.load(tensorDir / f"{models[modelName]['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
                     dataStd = torch.load(tensorDir/ f"{models[modelName]['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
-                    predictedTHPQual = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
-                    predictedTHPQuant = predictTHP(modelName, models[modelName], x, dataMean, dataStd, stateDictDir, VTReduced)  # Also carry out prediction for the 2D quantitative plots
+                    predictedTHPQual = predictTHP(xPred, modelName, models[modelName], dataMean, dataStd, stateDictDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
+                    predictedTHPQuant = predictTHP(x, modelName, models[modelName], dataMean, dataStd, stateDictDir, VTReduced)  # Also carry out prediction for the 2D quantitative plots
                     tasksSingleRe.append([predictedTHPQual, predictedTHPQuant, stateDictDir])  # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
                 except FileNotFoundError as e:
                     pathParts = e.filename.split("/")
@@ -293,11 +327,11 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
                     dataMean = torch.load(tensorDirReAll / f"{models[modelName]['dimensionType']}Mean.pt")  # Load the tensor of output mean values for the current model's dimension type
                     dataStd = torch.load(tensorDirReAll / f"{models[modelName]['dimensionType']}Std.pt")  # Load the tensor of output standard deviation values for the current model's dimension type
                     
-                    for Re in uniqueRe:                                             # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
+                    for Re in uniqueRe:                                         # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
-                        xPred = (xPredExpanded - xMean) / xStd                      # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                        predictedTHPQual = predictTHP(modelName, models[modelName], xPred, dataMean, dataStd, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
-                        predictedTHPQuant = predictTHP(modelName, models[modelName], x, dataMean, dataStd, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
+                        xPred = (xPredExpanded - xMean) / xStd                  # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
+                        predictedTHPQual = predictTHP(xPred, modelName, models[modelName], dataMean, dataStd, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
+                        predictedTHPQuant = predictTHP(x, modelName, models[modelName], dataMean, dataStd, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
                         tasksMultiRe.append([predictedTHPQual, predictedTHPQuant, stateDictDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
 
                 except FileNotFoundError as e:
@@ -324,7 +358,7 @@ def getLossPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task loss plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = set(plotTasks) & {"lumped", "modal", "spatial"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                          # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing loss plot data"):         # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
@@ -390,10 +424,11 @@ def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
         print("Optimal search was not requested for any ML/RBF model")
         return
     
-    trainingParams = loadyaml("trainingParams")                                 # Load training parameters 
-    for model in ["kriging", "modal", "rbf"]:                                   # These models have parameters that depend on data loaded from trainingParams, iterate over them
+    trainingParams = loadyaml("trainingParams")                                 # Load training parameters
+    plotParams = loadyaml("plotParams")                                         # Load training parameters 
+    for model in ["mgp", "mnn", "mrbf"]:                                        # These models have parameters that depend on data loaded from trainingParams, iterate over them
         models[model]["dimensionSize"] = trainingParams["modes"]                # ... for each model, update the dimensionSize to be the number of modes specified in trainingParams
-        
+    
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
                   if (tensorDir.is_dir() and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... filter out all non-directory entries and only accept directories that contain tensors with the requested number of modes
     if len(tensorDirs) == 0:                                                    # If there are no tensor directories available for the requested domain and number of modes in ./mlData, exit
@@ -404,9 +439,16 @@ def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
     taskArgs = []                                                               # ... corresponding list of function arguments
     for tensorDir in sorted(tensorDirs):                                        # Iterate over all tensor directories mathching requirements loaded from trainingParams.yaml
         for name, model in [(task, models[task]) for task in searchTasks]:      # Iterate over all tasks specified in --plot, returning the name of the model for training, and its respective entry in the dictionary
+            stateDictDirs = [dictDir for dictDir in Path(f"{tensorDir}/{name}").glob("*")
+                             if dictDir.is_dir()]
             taskFuncs.append(maximiseTHP)                                       # Every task will call the same maximiseTHP function
-            taskArgs.append([model, name, tensorDir])                           # Create list of arguments that will be passed to the maximiseTHP function, and append it to the list of task arguments
+            for stateDictDir in stateDictDirs:
+                taskArgs.append([model, name, stateDictDir, tensorDir]) # Create list of arguments that will be passed to the maximiseTHP function, and append it to the list of task arguments
+    historyPlotArgs = getLossPlotTaskArgs(searchTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-variable loss
+    taskPlotFuncs = sum([[fn for _ in args] for fn, args in zip([historyPlot], [historyPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    taskPlotArgs = historyPlotArgs                                              # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Searching for optimal feature values", "Completed optimal search using {} model with Re={} harmonics={}: {}")  # Send all tasks to the multi-threaded worker function
+    genericPoolManager(taskPlotFuncs, taskPlotArgs, None, nProc, "Plotting", None)  # Send all tasks to the multi-threaded worker function
     print("Optimal search process completed successfully")
         
 ###############################################################################

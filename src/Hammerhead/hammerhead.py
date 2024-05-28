@@ -51,9 +51,9 @@ def setup_argparse() -> ArgumentParser:
     parser.add_argument(      '--noTensor', action="store_true",      required=False, default=False,                                                                          help="Disable the tensor update process from HFM database")
     parser.add_argument('-n', '--nProc',    action="store", type=int, required=False, default=multiprocessing.cpu_count(),                                                    help="Number of concurrent processes")
     parser.add_argument('-o', '--openfoam', action="store", type=str, required=False, default="openfoam2212",                                                                 help="OpenFOAM executable name or path")
-    parser.add_argument('-p', '--plot',     action="store", type=str, required=False, default=[], nargs="*", choices=['kriging', 'lumped', 'modal', 'rbf', 'spatial', 'all'], help="Plot ML surface vs HF sparse data")
-    parser.add_argument('-s', '--search',   action="store", type=str, required=False, default=[], nargs="*", choices=['kriging', 'lumped', 'modal', 'rbf', 'spatial', 'all'], help="Line search for optimal shape parameters")
-    parser.add_argument('-t', '--train',    action="store", type=str, required=False, default=[], nargs="*", choices=['kriging', 'lumped', 'modal', 'rbf', 'spatial', 'all'], help="Train ML algorithms")
+    parser.add_argument('-p', '--plot',     action="store", type=str, required=False, default=[], nargs="*", choices=['lgp', 'lnn', 'lrbf', 'mgp', 'mnn', 'mrbf', 'sgp', 'snn', 'srbf', 'all'], help="Plot ML surface vs HF sparse data")
+    parser.add_argument('-s', '--search',   action="store", type=str, required=False, default=[], nargs="*", choices=['lgp', 'lnn', 'lrbf', 'mgp', 'mnn', 'mrbf', 'sgp', 'snn', 'srbf', 'all'], help="Line search for optimal shape parameters")
+    parser.add_argument('-t', '--train',    action="store", type=str, required=False, default=[], nargs="*", choices=['lgp', 'lnn', 'lrbf', 'mgp', 'mnn', 'mrbf', 'sgp', 'snn', 'srbf', 'all'], help="Train ML algorithms")
     return parser
 
 def parse_args(parser: ArgumentParser) -> Namespace:
@@ -86,7 +86,7 @@ def parse_args(parser: ArgumentParser) -> Namespace:
     
     for arg in ['plot', 'search', 'train']:                                     # For each of the --plot, --search and --train arguments ...
             if "all" in getattr(args, arg):                                     # ... if "all" has been specified ...
-                setattr(args, arg, ['kriging', 'lumped', 'modal', 'rbf', 'spatial'])  # ... replace "all" with list of all possible inputs (so these arguments are ALWAYS a list)
+                setattr(args, arg, ['lgp', 'lnn', 'lrbf', 'mgp', 'mnn', 'mrbf', 'snn', 'srbf'])  # ... replace "all" with list of all possible inputs (so these arguments are ALWAYS a list)
      
     if args.noTensor:                                                           # If tensor update process is disabled ...
         for arg in ["plot", "train"]:                                           # ... iterate over --plot and --train arguments (both of which require tensor data if enabled)

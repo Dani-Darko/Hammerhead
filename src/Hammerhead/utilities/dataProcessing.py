@@ -57,10 +57,12 @@ def standardiseTensor(expandedTensor: torch.tensor) -> list[torch.tensor, torch.
     mean: torch.tensor                  Mean of the original expanded tensor
     std: torch.tensor                   Standard deviation of the original expanded tensor
     """
-    std, mean = torch.std_mean(expandedTensor, dim=0)                       # Compute the standard deviation and mean of the expanded data
-    standardisedTensor = (expandedTensor - mean) / std                      # Standardise tensor based on its mean and standard deviation (compute the Z-score)
-    standardisedTensor[torch.isnan(standardisedTensor)] = 0.0               # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
-    return [standardisedTensor, mean, std]                                  # Return standardised tensor, as well as the mean and standard deviation of the original expanded tensor
+    #std, mean = torch.std_mean(expandedTensor, dim=0)                       # Compute the standard deviation and mean of the expanded data
+    #standardisedTensor = (expandedTensor - mean) / std                      # Standardise tensor based on its mean and standard deviation (compute the Z-score)
+    #standardisedTensor[torch.isnan(standardisedTensor)] = 0.0               # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
+    minValue, maxValue = torch.min(expandedTensor, dim=0)[0], torch.max(expandedTensor, dim=0)[0]
+    normalisedTensor = ((expandedTensor - minValue) / (maxValue - minValue))
+    return [normalisedTensor, minValue, maxValue]                            # Return standardised tensor, as well as the mean and standard deviation of the original expanded tensor
 
 def unstandardiseTensor(standarisedTensor: torch.tensor, mean: torch.tensor, std: torch.tensor) -> torch.tensor:
     """
@@ -77,7 +79,7 @@ def unstandardiseTensor(standarisedTensor: torch.tensor, mean: torch.tensor, std
     -------
     expandedTensor : torch.tensor       Original expanded tensor
     """
-    return (standarisedTensor * std) + mean
+    return standarisedTensor * (std - mean) + mean
 
 def genericPoolManager(taskFuncs: list[Callable],
                        taskArgsList: Optional[list[Any]],

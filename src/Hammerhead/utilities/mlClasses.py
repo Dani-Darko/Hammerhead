@@ -77,10 +77,12 @@ class Kriging(gpytorch.models.ExactGP):
         None
         """
         super().__init__(xTrain, yTrain, likelihood)
-        self.modalMean = gpytorch.means.ZeroMean()                              # Function that computes the distribution mean for each step (in this case, always zero)
-        self.modalCovar = gpytorch.kernels.ScaleKernel(                         # Function that will compute a covariance matrix for each step ... 
-            gpytorch.kernels.MaternKernel(nu=0.5, ard_num_dims=featureSize)     # ... using a 'kernel' based on a Scale of the sum of a Matern and a Polynomial kernel
-            + gpytorch.kernels.PolynomialKernel(power=1, num_dimentions=featureSize)) # ... nu values can be one of [0.5, 1.5, 2.5], higher is smoother
+        self.modalMean = gpytorch.means.ConstantMean()  # Function that computes the distribution mean for each step (in this case, always zero)
+        self.modalCovar = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.MaternKernel(nu=0.5, ard_num_dims=featureSize))
+        #self.modalCovar = gpytorch.kernels.ScaleKernel(                         # Function that will compute a covariance matrix for each step ... 
+        #    gpytorch.kernels.MaternKernel(nu=0.5, ard_num_dims=featureSize)     # ... using a 'kernel' based on a Scale of the sum of a Matern and a Polynomial kernel
+        #    + gpytorch.kernels.PolynomialKernel(power=1, num_dimentions=featureSize)) # ... nu values can be one of [0.5, 1.5, 2.5], higher is smoother
         
     def forward(self, x: torch.tensor) -> gpytorch.distributions.MultivariateNormal:
         """
