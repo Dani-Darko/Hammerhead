@@ -243,8 +243,6 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
     taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
     taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
-    #taskFuncs = sum([[fn for _ in args] for fn, args in zip([mlBenchmarkPlot], [benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
-    #taskArgs = benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
     
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", None)      # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
@@ -386,7 +384,7 @@ def getBenchmarkPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task benchmark plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                          # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
         
@@ -441,7 +439,7 @@ def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
             stateDictDirs = [dictDir for dictDir in Path(f"{tensorDir}/{name}").glob("*")
                              if dictDir.is_dir()]
             for stateDictDir in stateDictDirs:
-                taskArgs.append([model, name, stateDictDir, tensorDir]) # Create list of arguments that will be passed to the maximiseTHP function, and append it to the list of task arguments
+                taskArgs.append([model, name, stateDictDir, tensorDir])         # Create list of arguments that will be passed to the maximiseTHP function, and append it to the list of task arguments
     historyPlotArgs = getLossPlotTaskArgs(searchTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-variable loss
     taskFuncs = sum([[fn for _ in args] for fn, args in zip([maximiseTHP], [taskArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
     taskPlotFuncs = sum([[fn for _ in args] for fn, args in zip([historyPlot], [historyPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
