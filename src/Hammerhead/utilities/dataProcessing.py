@@ -62,6 +62,7 @@ def standardiseTensor(expandedTensor: torch.tensor) -> list[torch.tensor, torch.
     #standardisedTensor[torch.isnan(standardisedTensor)] = 0.0               # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
     minValue, maxValue = torch.min(expandedTensor, dim=0)[0], torch.max(expandedTensor, dim=0)[0]
     normalisedTensor = ((expandedTensor - minValue) / (maxValue - minValue))
+    normalisedTensor[torch.isnan(normalisedTensor)] = 0.0                    # Replace any NaN (resulting from zeros in the standard deviation tensor) with zeros
     return [normalisedTensor, minValue, maxValue]                            # Return standardised tensor, as well as the mean and standard deviation of the original expanded tensor
 
 def unstandardiseTensor(standarisedTensor: torch.tensor, mean: torch.tensor, std: torch.tensor) -> torch.tensor:

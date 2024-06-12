@@ -158,24 +158,25 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
         for n in tqdm(range(trainingParams["samples"]), desc="Processing samples", leave=False):  # Repeat training "samples" times, each time using a different random validationSplit seed and different initial hyperparameters
             for validationSplit in (valPBar := tqdm(trainingParams["validationSplit"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
                 valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
-                validSize = int(np.floor(validationSplit * dataSize))           # Compute the size of the validation data set, default is 35% of full data set for validation
-                BoundaryMaxIdx = [list(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
-                BoundaryMinIdx = [list(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                BoundaryMaxIdx = [set(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                BoundaryMinIdx = [set(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                BMIdx = []
+                for i in range(len(BoundaryMaxIdx)):
+                    for j in range(len(BoundaryMaxIdx)):
+                        if i != j:
+                            BMaxIdx = [item for item in BoundaryMaxIdx[i] if item in BoundaryMaxIdx[j]]
+                            BMinIdx = [item for item in BoundaryMinIdx[i] if item in BoundaryMinIdx[j]]
+                            BMIdx = BMIdx + BMinIdx + BMaxIdx
+                BMIdx = list(set(BMIdx))
                 indexSequence = list(np.arange(dataSize))
-                for BMaxIdx in BoundaryMaxIdx:
-                    indexSequence = [item for item in indexSequence if (item not in BMaxIdx)]
-                for BMinIdx in BoundaryMinIdx:
-                    indexSequence = [item for item in indexSequence if (item not in BMinIdx)]
-                indices = random.sample(indexSequence, k=len(indexSequence))    # Get a randomly arranged list of indices for the full data set
-                trainIdx, validIdx = indices[validSize:], indices[:validSize]   # Split all indices into two groups: indices that will address the training and the validation data sets
-                for BMaxIdx in BoundaryMaxIdx:
-                    trainIdx = trainIdx + BMaxIdx
-                for BMinIdx in BoundaryMinIdx:
-                    trainIdx = trainIdx + BMinIdx
+                indexSequence = [item for item in indexSequence if item not in (BMIdx)]
+                validSize = int(np.floor(validationSplit * dataSize))           # Compute the size of the validation data set, default is 35% of full data set for validation
+                indices = random.sample(BMIdx, k=(len(BMIdx))) + random.sample(indexSequence, k=(len(indexSequence)))    # Get a randomly arranged list of indices for the full data set
+                trainIdx, validIdx = indices[validSize:], indices[:validSize]  # Split all indices into two groups: indices that will address the training and the validation data sets
                 
                 xTrain = tensors["x"][trainIdx, :]                              # Select the training cases from the xData tensor
                 xValid = tensors["x"][validIdx, :]                              # Select the validation cases from the xData tensor
-
+                
                 for modelName in (modelPBar := tqdm(trainTasks, leave=False)):  # Iterate over all tasks specified in --train (with labelled progress bar)
                     modelPBar.set_description(f"Processing model={modelName}")  # Update progress bar with current model
                     for var in (varPBar := tqdm(models[modelName]["variables"], leave=False)):  # Also iterate over all variables available for this model (with labelled progress bar)
@@ -234,17 +235,17 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     xPredExpandedArray1H = np.array(np.meshgrid(xv, yv), dtype=np.float32).T.reshape(-1, 2)  # Array of unstandardised (expanded) x-values used for prediction for a 1-harmonic scenario
     xPredExpandedArray2H = np.insert(xPredExpandedArray1H, [1, 2], [plotParams["A2"], plotParams["k2"]], axis=1)  # Array of unstandardised (expanded) x-values used for prediction for a 2-harmonic scenario
     
-    #tasksSingleRe, tensorDirsReAll = getPredPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
-    #tasksMultiRe = getPredPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
+    tasksSingleRe, tensorDirsReAll = getPredPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
+    tasksMultiRe = getPredPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
     
-    #predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe] #+ tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
+    predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe] #+ tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
     lossPlotArgs = getLossPlotTaskArgs(plotTasks, tensorDirs, plotParams)       # Get list of task arguments for plotting per-variable loss
-    #benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
-    #taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
-    #taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
-    taskFuncs = sum([[fn for _ in args] for fn, args in zip([lossPlot], [lossPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
-    taskArgs = lossPlotArgs                 # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
-
+    benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
+    taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+    #taskFuncs = sum([[fn for _ in args] for fn, args in zip([mlBenchmarkPlot], [benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
+    #taskArgs = benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
+    
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", None)      # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
     
@@ -385,7 +386,7 @@ def getBenchmarkPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task benchmark plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = set(plotTasks) & {"lumped", "modal", "spatial"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                 # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
         
@@ -428,23 +429,21 @@ def mlOptimalSearch(domain: str, searchTasks: list[str], nProc: int) -> None:
     plotParams = loadyaml("plotParams")                                         # Load training parameters 
     for model in ["mgp", "mnn", "mrbf"]:                                        # These models have parameters that depend on data loaded from trainingParams, iterate over them
         models[model]["dimensionSize"] = trainingParams["modes"]                # ... for each model, update the dimensionSize to be the number of modes specified in trainingParams
-    
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
                   if (tensorDir.is_dir() and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... filter out all non-directory entries and only accept directories that contain tensors with the requested number of modes
     if len(tensorDirs) == 0:                                                    # If there are no tensor directories available for the requested domain and number of modes in ./mlData, exit
         print(f"No modes={trainingParams['modes']} tensor directories found in ./mlData/{domain} for optimal search process!")
         return                 
-    
-    taskFuncs = []                                                              # List of functions that will be passed to the parallelised pool manager
+
     taskArgs = []                                                               # ... corresponding list of function arguments
     for tensorDir in sorted(tensorDirs):                                        # Iterate over all tensor directories mathching requirements loaded from trainingParams.yaml
         for name, model in [(task, models[task]) for task in searchTasks]:      # Iterate over all tasks specified in --plot, returning the name of the model for training, and its respective entry in the dictionary
             stateDictDirs = [dictDir for dictDir in Path(f"{tensorDir}/{name}").glob("*")
                              if dictDir.is_dir()]
-            taskFuncs.append(maximiseTHP)                                       # Every task will call the same maximiseTHP function
             for stateDictDir in stateDictDirs:
                 taskArgs.append([model, name, stateDictDir, tensorDir]) # Create list of arguments that will be passed to the maximiseTHP function, and append it to the list of task arguments
     historyPlotArgs = getLossPlotTaskArgs(searchTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-variable loss
+    taskFuncs = sum([[fn for _ in args] for fn, args in zip([maximiseTHP], [taskArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
     taskPlotFuncs = sum([[fn for _ in args] for fn, args in zip([historyPlot], [historyPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
     taskPlotArgs = historyPlotArgs                                              # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Searching for optimal feature values", "Completed optimal search using {} model with Re={} harmonics={}: {}")  # Send all tasks to the multi-threaded worker function
