@@ -141,9 +141,6 @@ def GP(name: str,
     trainingData = torch.load(stateDictDir / f"{varName}_trainingData.pt")
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with
     
-    #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=dimensionSize)
-    #model = Kriging(xTrain, outputTrain, likelihood, featureSize, dimensionSize)
-    
     likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood() for _ in range(dimensionSize)]  # Gpytorch works with a single output, a list of likelihoods is produced for a multi-output model
     modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], featureSize) for i in range(dimensionSize)]  # Gpytorch works with a single output, a list of models is produced for a multi-output model
     modelLikelihood = [independentModel.likelihood for independentModel in modelPrev]  # Link each output point likelihood function to an output point model
@@ -153,11 +150,10 @@ def GP(name: str,
     
     model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
     
-    model.eval()                                                               # Evaluate current state of the model to enable prediction
-    likelihood.eval()                                                          # Evaluate current state of the likelihood to enable prediction
+    model.eval()                                                                # Evaluate current state of the model to enable prediction
+    likelihood.eval()                                                           # Evaluate current state of the likelihood to enable prediction
 
     with torch.no_grad(), gpytorch.settings.fast_pred_var(state=True), gpytorch.settings.fast_pred_samples(state=True):  # Disable gradient calculation for prediction purposes
-        #predictions = likelihood(model(xPred))                                 # Produce the multi-output prediction including confidence region
         predictions = likelihood(*model(*[xPred for _ in range(dimensionSize)]))  # Produce the multi-output prediction including confidence region
 
     data = torch.column_stack([prediction.mean for prediction in predictions])  # Extract the mean value from the prediction
@@ -197,15 +193,15 @@ def predictTHP(xPred: torch.tensor,
     """
     if method:
         xPred = torch.from_numpy(xPred).float().unsqueeze(0)
-    mlPrediction = [globals()[model["function"]](                           # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
+    mlPrediction = [globals()[model["function"]](                               # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
                         name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
                         xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
                         varName=var, stateDictDir=stateDictDir, VTReduced=VTReduced.get(var))
                     for var in model["variables"]]
-    mlPrediction = list(zip(*mlPrediction))                                 # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
+    mlPrediction = list(zip(*mlPrediction))                                     # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
     mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
     
-    if name != "lgp" and name != "lnn" and name != "lrbf":                    # If the current model isn't lumped ...
+    if name != "lgp" and name != "lnn" and name != "lrbf":                      # If the current model isn't lumped ...
         mlPrediction = [(None if data is None else lumpedDataCalculation(data)) for data in mlPrediction]  # Compute the Thermo-Hydraulic Performance (integral of advected heat flux and dissipation rate)
     
     if method:
@@ -240,14 +236,14 @@ def predictVar(xPred: torch.tensor,
     predictedTHPUpper : torch.tensor    Thermo-Hydraulic Performance evaluation upper confidence limit
     predictedTHPLower : torch.tensor    Thermo-Hydraulic Performance evaluation lower confidence limit
     """
-    mlPrediction = [globals()[model["function"]](                           # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
+    mlPrediction = [globals()[model["function"]](                               # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
                         name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
                         xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
                         varName=var, stateDictDir=stateDictDir, VTReduced=VTReduced.get(var))
                     for var in model["variables"]]
-    mlPrediction = list(zip(*mlPrediction))                                 # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
+    mlPrediction = list(zip(*mlPrediction))                                     # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
     mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
-    return [(None if data is None else data) for data in mlPrediction]  # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
+    return [(None if data is None else data) for data in mlPrediction]          # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
 
 def maximiseTHP(model: dict,
                 name: str,
@@ -282,15 +278,15 @@ def maximiseTHP(model: dict,
     bounds = tuple([(min(xData["x"][:,i]),max(xData["x"][:,i])) for i in range(xMean.shape[0])])
     thpHistory = []
                                                                                
-    xObjective = differential_evolution(predictTHP, bounds = bounds,           # line_search, least_squares, differential_evolution, nnls, basinhopping
+    xObjective = differential_evolution(predictTHP, bounds = bounds,            # line_search, least_squares, differential_evolution, nnls, basinhopping
                                         args=(name, model, outputMean, outputStd, stateDictDir, VTReduced, thpHistory, "maximize"),
                                         maxiter=int(1))
     xPredExpanded = unstandardiseTensor(torch.from_numpy(xObjective["x"]).float(), xMean, xStd)  # Convert the list of 1D feature tensors to a 2D feature tensor history, and unstandardise (expand) it
     torch.save({'xPredExpanded': xPredExpanded,
                 'thpHistory': thpHistory},
-                stateDictDir / "optimalFeatureHistory.pt")                      # Store the expanded optimal feature history
+                Path(stateDictDir) / "optimalFeatureHistory.pt")                # Store the expanded optimal feature history
     
-    if name != "lgp" and name != "lnn" and name != "lrbf":                        # If the current model isn't lumped ...
+    if name != "lgp" and name != "lnn" and name != "lrbf":                      # If the current model isn't lumped ...
         xPred = torch.zeros(xMean.shape[0])
         if xPred.shape[0] == 3 or xPred.shape[0] == 5:
             xPred[-1] = xPredExpanded[-1]
@@ -302,7 +298,7 @@ def maximiseTHP(model: dict,
     _, Re, _, _, _, harmonics = tensorDir.stem.split("_")                       # Extract the Reynolds number and number of harmonics from the tensorDir name
     featureLabels = ["A1", "A2", "k1", "k2", "Re"][:(5 if Re == "All" else 4):(2 if harmonics == "1" else 1)]  # Match feautre positions with their corresponding labels
     labelledFeatureValues = [f"{label}={value.item():.4f}" for label, value in zip(featureLabels, xPredExpanded)]  # Construct of a list of strings where each entry is a labelled feature with its optimal value
-    with open(stateDictDir / "optimalFeatures.txt", "w") as file:               # Open a text file for writing (old content will be overwritten)
+    with open(Path(stateDictDir) / "optimalFeatures.txt", "w") as file:               # Open a text file for writing (old content will be overwritten)
         file.write("\n".join(labelledFeatureValues))                            # Join labelled feature using newlines and store in a human-readable format
         
     return name, Re, harmonics, ", ".join(labelledFeatureValues)

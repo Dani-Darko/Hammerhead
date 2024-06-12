@@ -321,6 +321,7 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
         ax.set_xlabel(xLabel, fontsize=14)                                      # Set the x-axis label as neuron count
         ax.set_ylabel("Loss ($L^2$-norm)", fontsize=14)                         # Set the y-axis label as loss
         ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
+        ax.set_yscale('log')
         ax.set_xticks(xData)                                                    # Only show ticks for existing values
         fig.savefig(plotDir / figName, bbox_inches='tight', **kwargs)           # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources

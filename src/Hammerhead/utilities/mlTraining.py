@@ -117,7 +117,7 @@ def GP(featureSize: int,
        outputTrain: torch.tensor,
        varName: str,
        outputDir: Path,
-       epochs: int = 3,  # 40
+       epochs: int = 1,  # 40
        **kwargs) -> None:
     """
     Gaussian Process (GP) training process
@@ -136,9 +136,6 @@ def GP(featureSize: int,
     -------
     None
     """
-    #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=dimensionSize)
-    #model = Kriging(xTrain, outputTrain, likelihood, featureSize, dimensionSize)
-    #lossFunc = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
     
     likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood() for _ in range(dimensionSize)]  # Gpytorch trains for a single output, a list of likelihoods is produced for a multi-output model
     modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], featureSize) for i in range(dimensionSize)]  # Gpytorch trains for a single output, a list of models is produced for a multi-output model
@@ -156,8 +153,8 @@ def GP(featureSize: int,
 
     lossFunc = gpytorch.mlls.SumMarginalLogLikelihood(likelihood, model)        # Loss function utilising marginal log-likelihood (MLL)
     lossList = []                                                               # History of all computed losses during training
-        
-    with gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False) and gpytorch.settings.lazily_evaluate_kernels(state=False):
+    
+    with gpytorch.settings.fast_computations(covar_root_decomposition=True, log_prob=True, solves=True) and gpytorch.settings.lazily_evaluate_kernels():
         for _ in range(epochs):                                                 # Start the training
             optimizer.zero_grad()                                               # Reset the gradient for the backpropagation
             output = model(*model.train_inputs)                                 # Produce a prediction from training features
@@ -165,15 +162,6 @@ def GP(featureSize: int,
             loss.backward()                                                     # Compute the gradient on the training prediction
             optimizer.step()                                                    # Hyperparameter update from the computed gradient
             lossList.append(loss)                                               # Store the loss from training error
-    
-    #with gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False) and gpytorch.settings.lazily_evaluate_kernels(state=False):
-    #    for _ in range(epochs):                                                 # Start the training
-    #        optimizer.zero_grad()                                               # Reset the gradient for the backpropagation
-    #        output = model(xTrain)                                              # Produce a prediction from training features
-    #        loss = -lossFunc(output, outputTrain)                               # Compare prediction with training data through MLL
-    #        loss.backward()                                                     # Compute the gradient on the training prediction
-    #        optimizer.step()                                                    # Hyperparameter update from the computed gradient
-    #        lossList.append(loss)                                               # Store the loss from training error
     
     outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
     torch.save({'epoch': epochs,
