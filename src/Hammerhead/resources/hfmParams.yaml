@@ -1,5 +1,5 @@
 I: 0.05                 # Turbulence intensity [%]: only used when Re > 2000
-mu: 0.003               # Dynamic viscosity [Pa s]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES
+mu: 0.001               # Dynamic viscosity [Pa s]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES
 L: 2.0                  # Pipe length [m]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES (Refers to the shape parametrisation section, there is an additional 0.5m before and after said section)
 r: 0.2                  # Pipe radius [m]: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES
 dx: 900                 # Elements in x: ALSO NEEDS TO BE MODIFIED IN OPENFOAM BASE FILES (Refers to the shape parametrisation section, there are 100 additional elements before and after said section)
