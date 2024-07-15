@@ -163,7 +163,7 @@ def updateVelocity(casePath: Path, hfmParams: dict[str, float], Re: int, C_mu: f
     -------
     None
     """
-    u = np.round(Re * hfmParams['mu'] / hfmParams['L'])                         # Compute the inlet velocity from the Reynolds number and domain dimensions
+    u = np.round(Re * hfmParams['mu'] / (hfmParams['r']*2))                     # Compute the inlet velocity from the Reynolds number and domain dimensions
     k = (3/2) * ((u * hfmParams['I']) ** 2)                                     # Compute turbulent kinetic energy (takes effect when Re > 2000)
     omega = (k ** 0.5) / ((C_mu ** 0.25) * hfmParams['r'])                      # Compute specific turbulent dissipation rate (takes effect when Re > 2000)
     epsilon = ((k ** 1.5) * (C_mu ** 0.75)) / hfmParams['r']                    # Compute turbulent dissipation rate (takes effect when Re > 2000)
