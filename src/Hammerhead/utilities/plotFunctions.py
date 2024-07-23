@@ -114,7 +114,7 @@ def predictionPlot(xv: np.ndarray,
             ax.plot_surface(X, Y, Zlim, color="k", alpha=0.2, lw=0, antialiased=False)  # ... plot a surface for both limits
     
     bar.set_label(r'$\dot{Q}$', rotation=0, fontsize=14)                        # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
-    ax.set_xlabel("$A_1$")                                                      # Set the x-axis label as A1
+    ax.set_xlabel("$\mathrm{A}_1$")                                                      # Set the x-axis label as A1
     ax.set_ylabel("$k_1$")                                                      # Set the y-axis label as k1
     ax.tick_params(axis='both', labelsize=10)                                   # Modify the tick label size
     ax.legend()                                                                 # Add a legend, containing the fixed parameter values label
@@ -125,7 +125,7 @@ def predictionPlot(xv: np.ndarray,
     
     # 2D (quantitative) prediction plot:
     
-    fig, ax = plt.subplots(figsize=(2.5, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    fig, ax = plt.subplots(figsize=(2.7, 2))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
     points_num = min(60, len(lumpedRealNorm2D))                                 # Select a maximum amount of points to show in the quantitative plot, no more than 60
     pointsIdx = random.choices(np.arange(len(lumpedRealNorm2D)), k=points_num)  # Take a random selection of the THP array to show in the quantitative plot
     x_lin = np.arange(points_num)                                               # X-axis is a monotonically increasing sequence, one entry per predicted value
@@ -133,19 +133,20 @@ def predictionPlot(xv: np.ndarray,
     y_lims = None if lumpedLimits2D is None else [((limit + lumpedRealNorm2D) / 2)[pointsIdx, 0] for limit in lumpedLimits2D]  # Limits for the GP to show around the predicted and HFM values
     y_err = np.abs((lumpedPredNorm2D - lumpedRealNorm2D) / 2)[pointsIdx, 0]     # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
     if xExpanded2D.shape[1] == 2 or xExpanded2D.shape[1] == 3:
-        xlabels = [fr"$A_1={xExpanded2D[i,0]:.3f}$, $k_1={int(xExpanded2D[i,1])}$" for i in pointsIdx]
+        xlabels = [f"$\mathrm{{A}}_1={xExpanded2D[i,0]:.3f}$, $k_1={int(xExpanded2D[i,1])}$" for i in pointsIdx]
     else:
-        xlabels = [fr"$A_1={xExpanded2D[i,0]:.3f}$, $k_1={int(xExpanded2D[i,2])}$" for i in pointsIdx]
+        xlabels = [f"$\mathrm{{A}}_1={xExpanded2D[i,0]:.3f}$, $k_1={int(xExpanded2D[i,2])}$" for i in pointsIdx]
     ax.errorbar(x_lin, y_mid, xerr=0, yerr=y_err, fmt="k", marker="", ls="", alpha=0.2)  # Plot errorbar first (no points, just residuals), semi-transparent, highlighting the difference between predicted and HFM values
     if y_lims is not None:
         ax.fill_between(x_lin, y_lims[0], y_lims[1], color='grey', alpha=0.5)   # Plot the GP confidence region limits when GP is available
-    ax.plot(x_lin, lumpedPredNorm2D[pointsIdx], "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction")  # Plot predicted values as a line plot
-    ax.plot(x_lin, lumpedRealNorm2D[pointsIdx], "kx", label=f"HFM data")        # Plot HFM values as black crosses
+    ax.plot(x_lin, lumpedPredNorm2D[pointsIdx], "m", label=f"$\mathrm{{{stateDictDir.parts[pivotIdx + 3].capitalize()}}}$ $\mathrm{{prediction}}$", marker=".", linewidth=0, markersize=2)  # Plot predicted values as a line plot
+    ax.plot(x_lin, lumpedRealNorm2D[pointsIdx], "k", label="$\mathrm{HFM}$ $\mathrm{data}$", marker="x", linewidth=0, markersize=2)        # Plot HFM values as black crosses
     ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
-    ax.set_xlabel("Shape parameter variation cases", fontsize=10)               # Set x-label
+    ax.set_xlabel("$\mathrm{Cases}$", fontsize=10)                              # Set x-label
     ax.set_ylabel(r'$\dot{Q}$', fontsize=10)                                    # Set y-label
     ax.tick_params(axis='both', labelsize=6)                                    # Adjust tick label font size
-    ax.legend(fontsize=10)                                                      # Finally, draw legend
+    ax.legend(fontsize=6)                                                       # Finally, draw legend
+    plt.grid(axis="both", alpha=0.5, linewidth=0.1)
     fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_2D.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
     
@@ -153,13 +154,13 @@ def predictionPlot(xv: np.ndarray,
     
     fig, ax = plt.subplots(figsize=(2.5, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
     y_err = (np.abs(lumpedPredNorm2D - lumpedRealNorm2D) / np.abs(lumpedRealNorm2D))[:, 0]  # Y relative errors between predicted and HFM values
-    ax.plot(y_err, "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction error", linewidth=0.5, markersize=2)  # Plot Y relative errors
+    ax.plot(y_err, "m.", markersize=2)                                          # Plot Y relative errors
     ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
     ax.set_yscale('log')                                                        # Set the y-axis scale as log
-    ax.set_ylabel('$Relative$ $Error$', fontsize=10)                                         # Set y-label
-    ax.tick_params(axis='both', labelsize=6)                                   # Adjust tick label font size
+    ax.set_ylabel('$\mathrm{Relative}$ $\mathrm{Error}$', fontsize=10)                                         # Set y-label
+    ax.tick_params(axis='both', labelsize=6)                                    # Adjust tick label font size
     ax.legend()                                                                 # Finally, draw legend
-    plt.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
+    plt.grid(which="both", alpha=0.5, linewidth=0.1)
     fig.savefig(plotDir / f'2D_error.pdf', bbox_inches='tight')                 # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
 
@@ -266,18 +267,18 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
     for checkpointFile in stateDictDir.glob("*.pt"):                            # Iterate over all checkpoint files in the model checkpoint directory
         if checkpointFile == stateDictDir / "optimalFeatureHistory.pt":
             continue
-        fig, ax = plt.subplots(figsize=(4, 3))                                  # Create new figure with single subplot
-        if str(checkpointFile).split("/")[-2] == "lnn" or str(checkpointFile).split("/")[-2] == "mnn" or str(checkpointFile).split("/")[-2] == "snn":
-            ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set", linewidth=0.5, markersize=2)  # Load and plot validation set loss
-            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set", linewidth=0.5, markersize=2)  # Load and plot training set loss
+        fig, ax = plt.subplots(figsize=(2.7, 2))                                # Create new figure with single subplot
+        if str(checkpointFile).split("/")[-3] == "lnn" or str(checkpointFile).split("/")[-3] == "mnn" or str(checkpointFile).split("/")[-3] == "snn":
+            ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="$\mathrm{Validation}$ $\mathrm{set}$", linewidth=0.5, markersize=2)  # Load and plot validation set loss
+            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="$\mathrm{Training}$ $\mathrm{set}$", linewidth=0.5, markersize=2)  # Load and plot training set loss
         else:
             ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set", linewidth=0.5, markersize=2)  # Load and plot training set loss
         ax.set_xlabel("$\mathrm{Epoch}$", fontsize=10)                          # Set the x-axis label as epoch
         ax.set_ylabel("$\mathrm{J}$", fontsize=10)                              # Set the y-axis label as loss
         ax.set_yscale('log')
-        ax.tick_params(axis='both', labelsize=6)                               # Modify the tick label size
+        ax.tick_params(axis='both', labelsize=6)                                # Modify the tick label size
         plt.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
-        ax.legend()                                                             # Add a legend, containing the fixed parameter values label
+        ax.legend(fontsize=6)                                                   # Add a legend, containing the fixed parameter values label
         fig.savefig(plotDir / f"loss_{checkpointFile.stem}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources
 
