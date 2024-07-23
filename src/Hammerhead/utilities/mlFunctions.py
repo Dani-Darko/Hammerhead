@@ -110,7 +110,7 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
     torch.set_num_threads(nProc)                                                # Limit PyTorch to number of threads specified by nProc
     
     trainingParams = loadyaml("trainingParams")                                 # Load the training parameters from ./resources/trainingParams.yaml; edit this file to use different parameters
-    for param in ["layers", "neurons", "validationSplit"]:                      # As the user has the option to provide a single value or a list of values for these params ...
+    for param in ["layers", "neurons", "validationSplit", "gpKernels", "maternNu"]:  # As the user has the option to provide a single value or a list of values for these params ...
         if isinstance(trainingParams[param], (int, float)):                     # ... if a single value is provided
             trainingParams[param] = [trainingParams[param]]                     # ... ensure that it is always a list (needs to be iterable for code below)
             
@@ -124,6 +124,8 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
     
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
                   if (tensorDir.is_dir()                                        # ... filter out all non-directory entries
+                      and int(tensorDir.stem.split("_")[-1]) == 1
+                      and tensorDir.stem.split("_")[1] == "500"
                       and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... only accept directories that contain tensors with the requested number of modes
     if len(tensorDirs) == 0:                                                    # If there are no tensor directories available for the requested domain and number of modes in ./mlData, exit
         print(f"No modes={trainingParams['modes']} tensor directories found in ./mlData/{domain} for model training process!")
@@ -157,29 +159,37 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
         dataSize, featureSize = tensors["x"].shape                              # Shape of the full data set, where shape[0] is the number of processed cases and shape[1] is the number of features
         for n in tqdm(range(trainingParams["samples"]), desc="Processing samples", leave=False):  # Repeat training "samples" times, each time using a different random validationSplit seed and different initial hyperparameters
             for validationSplit in (valPBar := tqdm(trainingParams["validationSplit"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
-                valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
-                BoundaryMaxIdx = [set(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
-                BoundaryMinIdx = [set(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
-                BMIdx = []
-                for i in range(len(BoundaryMaxIdx)):
-                    for j in range(len(BoundaryMaxIdx)):
-                        if i != j:
-                            BMaxIdx = [item for item in BoundaryMaxIdx[i] if item in BoundaryMaxIdx[j]]
-                            BMinIdx = [item for item in BoundaryMinIdx[i] if item in BoundaryMinIdx[j]]
-                            BMIdx = BMIdx + BMinIdx + BMaxIdx
-                BMIdx = list(set(BMIdx))
-                indexSequence = list(np.arange(dataSize))
-                indexSequence = [item for item in indexSequence if item not in (BMIdx)]
-                validSize = int(np.floor(validationSplit * dataSize))           # Compute the size of the validation data set, default is 35% of full data set for validation
-                indices = random.sample(BMIdx, k=(len(BMIdx))) + random.sample(indexSequence, k=(len(indexSequence)))    # Get a randomly arranged list of indices for the full data set
-                trainIdx, validIdx = indices[validSize:], indices[:validSize]  # Split all indices into two groups: indices that will address the training and the validation data sets
-                
-                xTrain = tensors["x"][trainIdx, :]                              # Select the training cases from the xData tensor
-                xValid = tensors["x"][validIdx, :]                              # Select the validation cases from the xData tensor
-                
                 for modelName in (modelPBar := tqdm(trainTasks, leave=False)):  # Iterate over all tasks specified in --train (with labelled progress bar)
                     modelPBar.set_description(f"Processing model={modelName}")  # Update progress bar with current model
                     for var in (varPBar := tqdm(models[modelName]["variables"], leave=False)):  # Also iterate over all variables available for this model (with labelled progress bar)
+                        valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
+                        featMaxIdx = [set(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                        featMinIdx = [set(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
+                        outMaxIdx = [set(np.where(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]==max(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]))[0]) for i in range(tensors[ models[modelName]["dimensionType"] ][ var ].shape[1])]
+                        outMinIdx = [set(np.where(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]==min(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]))[0]) for i in range(tensors[ models[modelName]["dimensionType"] ][ var ].shape[1])]
+                        BMIdx = []
+                        for i in range(len(featMaxIdx)):
+                            Idx = [item for item in featMaxIdx[i]]
+                            BMIdx = BMIdx + Idx
+                        for i in range(len(featMinIdx)):
+                            Idx = [item for item in featMinIdx[i]]
+                            BMIdx = BMIdx + Idx
+                        for i in range(len(outMaxIdx)):
+                            Idx = [item for item in outMaxIdx[i]]
+                            BMIdx = BMIdx + Idx
+                        for i in range(len(outMinIdx)):
+                            Idx = [item for item in outMinIdx[i]]
+                            BMIdx = BMIdx + Idx
+                        BMIdx = list(set(BMIdx))
+                        indexSequence = list(np.arange(dataSize))
+                        indexSequence = [item for item in indexSequence if item not in (BMIdx)]
+                        validSize = int(np.floor(validationSplit * dataSize))   # Compute the size of the validation data set, default is 35% of full data set for validation
+                        indices = random.sample(indexSequence, k=(len(indexSequence))) + random.sample(BMIdx, k=(len(BMIdx)))  # Get a randomly arranged list of indices for the full data set
+                        trainIdx, validIdx = indices[validSize:], indices[:validSize]  # Split all indices into two groups: indices that will address the training and the validation data sets
+                
+                        xTrain = tensors["x"][trainIdx, :]                      # Select the training cases from the xData tensor
+                        xValid = tensors["x"][validIdx, :]                      # Select the validation cases from the xData tensor
+                        
                         varPBar.set_description(f"Processing var={var}")        # Update progress bar with current flow variable
                         outputTrain = tensors[ models[modelName]["dimensionType"] ][ var ][trainIdx, :]  # ... compute the output training tensor
                         outputValid = tensors[ models[modelName]["dimensionType"] ][ var ][validIdx, :]  # ... compute the output validation tensor
@@ -194,11 +204,23 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
                                          f"neurons_{neurons:0{neuronsPad}d}",
                                          f"n_{n:0{samplesPad}d}"])
                                     _callTrain(layers = layers, neurons = neurons)  # call model-specific ML training function (layers and neurons are NN-specific kwargs)
-                        else:                                                   # if model is not a neural network, no need to loop over neurons/layers
-                            targetDir = "_".join(                               # construct string of target model state dictionary directory (innermost)
-                                        [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
-                                         f"n_{n:0{samplesPad}d}"])
-                            _callTrain()                                        # call model-specific ML training function
+                        elif models[modelName]["function"] == "GP":             # if model is a Gaussian Process, loop over kernels
+                            for kernel in (kernelPBar := tqdm(trainingParams["gpKernels"], leave=False)):
+                                kernelPBar.set_description(f"Processing kernel={kernel}")  # Update progress bar with current NN layer number
+                                if kernel == "MaternKernel" or kernel == "PolynomialKernel":
+                                    for maternNu in (nuPBar := tqdm(trainingParams["maternNu"], leave=False)):
+                                        nuPBar.set_description(f"Processing MaternKernel nu={maternNu}")
+                                        targetDir = "_".join(                   # construct string of target model state dictionary directory (innermost)
+                                                    [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
+                                                     f"kernel_{kernel}_{maternNu}",
+                                                     f"n_{n:0{samplesPad}d}"])
+                                        _callTrain(kernel = kernel, maternNu = maternNu)  # call model-specific ML training function
+                                else:
+                                    targetDir = "_".join(                       # construct string of target model state dictionary directory (innermost)
+                                                [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
+                                                 f"kernel_{kernel}",
+                                                 f"n_{n:0{samplesPad}d}"])
+                                    _callTrain(kernel = kernel, maternNu = 0)   # call model-specific ML training function
    
 def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     """
@@ -225,7 +247,8 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
         models[model]["dimensionSize"] = trainingParams["modes"]                # ... for each model, update the dimensionSize to be the number of modes specified in trainingParams (if no other function has done this yet)
         
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
-                  if (tensorDir.is_dir() and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... filter out all non-directory entries and only accept directories that contain tensors with the requested number of modes
+                  if (tensorDir.is_dir()                                        # ... filter out all non-directory entries
+                      and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... only accept directories that contain tensors with the requested number of modes
     if len(tensorDirs) == 0:                                                    # If there are no tensor directories available for the requested domain and number of modes in ./mlData, exit
         print(f"No modes={trainingParams['modes']} tensor directories found in ./mlData/{domain} for prediction/plotting process!")
         return
@@ -238,12 +261,12 @@ def mlPlot(domain: str, plotTasks: list[str], nProc: int) -> None:
     tasksSingleRe, tensorDirsReAll = getPredPlotTasksSingleRe(plotTasks, tensorDirs, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all single-Re scenarios, as well as a list of multi-Re tensor directories
     tasksMultiRe = getPredPlotTasksMultiRe(plotTasks, tensorDirsReAll, xPredExpandedArray1H, xPredExpandedArray2H)  # Get a partial list of task arguments for all multi-Re scenarios
     
-    predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe] #+ tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
+    predPlotArgs = [[xv, yv, plotParams] + task for task in tasksSingleRe + tasksMultiRe]  # Merge the two lists of task arguments, adding other necessary parameters that exist locally 
     lossPlotArgs = getLossPlotTaskArgs(plotTasks, tensorDirs, plotParams)       # Get list of task arguments for plotting per-variable loss
     benchmarkPlotArgs = getBenchmarkPlotTaskArgs(plotTasks, tensorDirs, plotParams)  # Get list of task arguments for plotting per-architecture loss benchmark
     taskFuncs = sum([[fn for _ in args] for fn, args in zip([predictionPlot, lossPlot, mlBenchmarkPlot], [predPlotArgs, lossPlotArgs, benchmarkPlotArgs])], [])  # Create a list containing function objects for each element in all taskArgs lists
     taskArgs = predPlotArgs + lossPlotArgs + benchmarkPlotArgs                  # Combine all function arguments into a single list with the same size as taskFuncs, to be passed to pool manager
-    
+     
     genericPoolManager(taskFuncs, taskArgs, None, nProc, "Plotting", None)      # Send all tasks to the multi-threaded worker function
     print("Plotting process completed successfully")
     
@@ -357,7 +380,7 @@ def getLossPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task loss plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                          # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn", "lgp", "mgp", "sgp"}     # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing loss plot data"):         # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
@@ -384,16 +407,24 @@ def getBenchmarkPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task benchmark plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = set(plotTasks) & {"lnn", "mnn", "snn"}                          # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasksNN = set(plotTasks) & {"lnn", "mnn", "snn"}                        # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
         
             lossTable = {}
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
                 if stateDictDir.is_dir():                                       # If the state dict path is a valid directory
-                    _, valSplit, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
+                    if plotTask in plotTasksNN:
+                        _, valSplit, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
+                    else:
+                        valSplit = float(stateDictDir.name.split("_")[1])
                     for varStateDict in stateDictDir.glob("*.pt"):              # for each variable inside the state dict folder
-                        key = (valSplit, layers, neurons, varStateDict.stem)    # set dictionary key as the current NN architecture and flow variable
+                        if plotTask in plotTasksNN:
+                            key = (valSplit, layers, neurons, varStateDict.stem)  # set dictionary key as the current NN architecture and flow variable
+                        elif stateDictDir.name.split("_")[3] == "MaternKernel":
+                            key = (valSplit, stateDictDir.name.split("_")[3], float(stateDictDir.name.split("_")[4]), varStateDict.stem)
+                        else:
+                            key = (valSplit, stateDictDir.name.split("_")[3], varStateDict.stem)
                         loss = torch.load(varStateDict)["lossTrain"][-1]        # extract the last loss from the variable state dictionary
                         if key in lossTable:                                    # if this combination of NN architecture and flow variable has been seen before, a list of loss values already exists
                             lossTable[key].append(loss)                         # ... therefore, append to the list

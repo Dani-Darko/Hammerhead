@@ -61,7 +61,14 @@ class Network(torch.nn.Module):
         return self.model(x)
 
 class Kriging(gpytorch.models.ExactGP):
-    def __init__(self, xTrain: torch.tensor, yTrain: torch.tensor, likelihood: gpytorch.likelihoods.GaussianLikelihood, featureSize: int) -> None:
+    def __init__(self,
+                 xTrain: torch.tensor,
+                 yTrain: torch.tensor,
+                 likelihood: gpytorch.likelihoods.GaussianLikelihood,
+                 kernel: str,
+                 maternNu: float,
+                 featureSize: int,
+                 dimensionSize: int) -> None:
         """
         Gaussian Process class used by the kriging model only
         
@@ -70,24 +77,23 @@ class Kriging(gpytorch.models.ExactGP):
         xTrain : torch.tensor               Features tensor
         yTrain : torch.tensor               Modes tensor
         likelihood : gpytorch.likelihoods   Log Marginal Likelihood for regression
+        kernel: str                         Kernel type of the covariance matrix
+        maternNu: float                     Smoother for the MaternKernel
         featureSize : int                   Amount of features
+        dimensionSize : int                 Output size
 
         Returns
         -------
         None
         """
         super().__init__(xTrain, yTrain, likelihood)
-        self.modalMean = gpytorch.means.ConstantMean()  # Function that computes the distribution mean for each step (in this case, always zero)
-        self.modalCovar = gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.MaternKernel(nu=0.5, ard_num_dims=featureSize))
-        #self.modalCovar = gpytorch.kernels.ScaleKernel(                         # Function that will compute a covariance matrix for each step ... 
-        #    gpytorch.kernels.MaternKernel(nu=0.5, ard_num_dims=featureSize)     # ... using a 'kernel' based on a Scale of the sum of a Matern and a Polynomial kernel
-        #    + gpytorch.kernels.PolynomialKernel(power=1, num_dimentions=featureSize)) # ... nu values can be one of [0.5, 1.5, 2.5], higher is smoother
+        self.Mean = gpytorch.means.ConstantMean()                               # Function that computes the distribution mean for each step
+        self.Covar = gpytorch.kernels.ScaleKernel(getattr(gpytorch.kernels, kernel)(nu=maternNu, power=int(maternNu)))  # Function that computes the covariance matrix for each step
         
     def forward(self, x: torch.tensor) -> gpytorch.distributions.MultivariateNormal:
         """
         Compute a multivariate normal random variable, from a distribution
-            based on the computed model mean (zero) and covariance (based on
+            based on the computed model mean (constant) and covariance (based on
             the kernel) at this step; called once per epoch
             
         Parameters
@@ -98,7 +104,7 @@ class Kriging(gpytorch.models.ExactGP):
         --------
         out : MultivariateNormal            Multivariate distribution at current state
         """
-        return gpytorch.distributions.MultivariateNormal(self.modalMean(x), self.modalCovar(x))
+        return gpytorch.distributions.MultivariateNormal(self.Mean(x),self.Covar(x))
     
 ###############################################################################
 
