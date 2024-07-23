@@ -159,7 +159,6 @@ def predictionPlot(xv: np.ndarray,
     ax.set_yscale('log')                                                        # Set the y-axis scale as log
     ax.set_ylabel('$\mathrm{Relative}$ $\mathrm{Error}$', fontsize=10)                                         # Set y-label
     ax.tick_params(axis='both', labelsize=6)                                    # Adjust tick label font size
-    ax.legend()                                                                 # Finally, draw legend
     plt.grid(which="both", alpha=0.5, linewidth=0.1)
     fig.savefig(plotDir / f'2D_error.pdf', bbox_inches='tight')                 # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
