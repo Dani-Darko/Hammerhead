@@ -1,3 +1,4 @@
+
 ##############################################################################################
 #                                                                                            #
 #       HAMMERHEAD - Harmonic MOO Model Expedient for the Reduction                          #
@@ -125,6 +126,8 @@ def GP(name: str,
     ----------
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
+    kernel: str                         Kernel type of the covariance matrix
+    maternNu: float                     Smoother for the MaternKernel
     xPred  : torch.tensor               Feature tensor used for prediction
     outputMean : torch.tensor           Mean of output tensor
     outputStd : torch.tensor            Stadard deviation of the output tensor
@@ -138,27 +141,32 @@ def GP(name: str,
     outputUpperTensor : torch.tensor    Prediction output upper confidence limit tensor
     outputLowerTensor : torch.tensor    Prediction output lower confidence limit tensor
     """
-    trainingData = torch.load(stateDictDir / f"{varName}_trainingData.pt")
-    xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with
+    trainingData = torch.load(stateDictDir / f"{varName}.pt")                   # Load the file where the dictionary of model parameters and data is stored
+    xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with from the file
+    kernel = (stateDictDir.name.split("_"))[3]                                  # Infer the kernel the model was trained with from the directory name
+    if kernel == "MaternKernel" or kernel == "PolynomialKernel":                # Matern and Polyinomial kernels require extra parameters ...
+        maternNu = float(stateDictDir.name.split("_")[4])                       # ... Infer these parameters from the directory name ...
+    else:
+        maternNu = 0                                                            # ... Or make them zero for the rest of kernels to ignore the value within the mlClases.py
     
-    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood() for _ in range(dimensionSize)]  # Gpytorch works with a single output, a list of likelihoods is produced for a multi-output model
-    modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], featureSize) for i in range(dimensionSize)]  # Gpytorch works with a single output, a list of models is produced for a multi-output model
+    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood(noise=torch.tensor(1e-6)) for _ in range(dimensionSize)]  # Gpytorch works with a single output, a list of likelihoods is produced for a multi-output model
+    modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], kernel, maternNu, featureSize, dimensionSize) for i in range(dimensionSize)]  # Gpytorch works with a single output, a list of models is produced for a multi-output model
     modelLikelihood = [independentModel.likelihood for independentModel in modelPrev]  # Link each output point likelihood function to an output point model
     
     model = gpytorch.models.IndependentModelList(*modelPrev)                    # Create a Gaussian Process model from modelPrev (list of sub-models)
-    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood).train()  # Create likelihood object from list of previously created list of likelyhoods 
+    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood)          # Create likelihood object from list of previously created list of likelyhoods 
     
     model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
     
     model.eval()                                                                # Evaluate current state of the model to enable prediction
     likelihood.eval()                                                           # Evaluate current state of the likelihood to enable prediction
 
-    with torch.no_grad(), gpytorch.settings.fast_pred_var(state=True), gpytorch.settings.fast_pred_samples(state=True):  # Disable gradient calculation for prediction purposes
+    with torch.no_grad(), gpytorch.settings.lazily_evaluate_kernels(state=False), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False):  # Disable gradient calculation for prediction purposes
         predictions = likelihood(*model(*[xPred for _ in range(dimensionSize)]))  # Produce the multi-output prediction including confidence region
 
     data = torch.column_stack([prediction.mean for prediction in predictions])  # Extract the mean value from the prediction
     confidence = [torch.column_stack([prediction.confidence_region()[i] for prediction in predictions]) for i in range(2)]  # Extract the standardised upper and lower confidence limit tensors
-    dataExpanded = [unstandardiseTensor(tensor, outputMean, outputStd) for tensor in [data, *confidence]]  # Unstandardise (expand) the data and confidence limits
+    dataExpanded = [unstandardiseTensor(tensor.float(), outputMean, outputStd) for tensor in [data, *confidence]]  # Unstandardise (expand) the data and confidence limits
     
     return tuple(torch.mm(tensor, VTReduced) if name == "mgp" else tensor for tensor in dataExpanded) # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
 
