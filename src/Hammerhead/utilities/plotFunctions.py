@@ -88,9 +88,10 @@ def predictionPlot(xv: np.ndarray,
     baselineIdx = torch.all(xExpanded == torch.zeros(2), axis=1)                # Get the row index where A1=0 and k1=0 to use as a baseline value
     lumpedBaseline = lumpedDataExpanded["lumpedT"][baselineIdx] - lumpedDataExpanded["lumpedp"][baselineIdx]  # Calculate the Thermo-Hydraulic Performance of the baseline case (A1=0, k1=0)    
     lumpedReal = (lumpedDataExpanded["lumpedT"] - lumpedDataExpanded["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data, normalised against the baseline case
-    lumpedReal2D = (lumpedDataExpanded2D["lumpedT"] - lumpedDataExpanded2D["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data, normalised against the baseline case
+    lumpedReal2D = (lumpedDataExpanded2D["lumpedT"] - lumpedDataExpanded2D["lumpedp"])
+    lumpedRealNorm2D = lumpedReal2D / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data, normalised against the baseline case
     lumpedPred3D = lumpedPred3D / lumpedBaseline                                # Normalise predicted qualitative THP against the baseline case
-    lumpedPred2D = lumpedPred2D / lumpedBaseline                                # Normalise predicted quantitative THP against the baseline case
+    lumpedPredNorm2D = lumpedPred2D / lumpedBaseline                            # Normalise predicted quantitative THP against the baseline case
     lumpedLimits3D = None if lumpedLimits3D is None else [limit / lumpedBaseline for limit in lumpedLimits3D]  # Also normalise both qualitative limits if they exist
     lumpedLimits2D = None if lumpedLimits2D is None else [limit / lumpedBaseline for limit in lumpedLimits2D]  # Also normalise both qualitative limits if they exist
 
@@ -125,12 +126,12 @@ def predictionPlot(xv: np.ndarray,
     # 2D (quantitative) prediction plot:
     
     fig, ax = plt.subplots(figsize=(6.4, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
-    points_num = min(60, len(lumpedReal2D))
-    pointsIdx = random.choices(np.arange(len(lumpedReal2D)), k=points_num)
+    points_num = min(60, len(lumpedRealNorm2D))
+    pointsIdx = random.choices(np.arange(len(lumpedRealNorm2D)), k=points_num)
     x_lin = np.arange(points_num)                                               # X-axis is a monotonically increasing sequence, one entry per predicted value
-    y_mid = ((lumpedPred2D + lumpedReal2D) / 2)[pointsIdx, 0]                   # Y-midpoints between predicted and HFM values (for errorbar plot, actual points will not be visible)
-    y_lims = None if lumpedLimits2D is None else [((limit + lumpedReal2D) / 2)[pointsIdx, 0] for limit in lumpedLimits2D]
-    y_err = np.abs((lumpedPred2D - lumpedReal2D) / 2)[pointsIdx, 0]             # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
+    y_mid = ((lumpedPredNorm2D + lumpedRealNorm2D) / 2)[pointsIdx, 0]                   # Y-midpoints between predicted and HFM values (for errorbar plot, actual points will not be visible)
+    y_lims = None if lumpedLimits2D is None else [((limit + lumpedRealNorm2D) / 2)[pointsIdx, 0] for limit in lumpedLimits2D]
+    y_err = np.abs((lumpedPredNorm2D - lumpedRealNorm2D) / 2)[pointsIdx, 0]             # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
     if xExpanded2D.shape[1] == 2 or xExpanded2D.shape[1] == 3:
         xlabels = [fr"$A_1={xExpanded2D[i,0]:.3f}$, $k_1={int(xExpanded2D[i,1])}$" for i in pointsIdx]
     else:
@@ -138,9 +139,9 @@ def predictionPlot(xv: np.ndarray,
     ax.errorbar(x_lin, y_mid, xerr=0, yerr=y_err, fmt="k", marker="", ls="", alpha=0.2)  # Plot errorbar first (no points, just residuals), semi-transparent, highlighting the difference between predicted and HFM values
     if y_lims is not None:
         ax.fill_between(x_lin, y_lims[0], y_lims[1], color='grey', alpha=0.5)
-    ax.plot(x_lin, lumpedPred2D[pointsIdx], "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction")  # Plot predicted values as a line plot
-    ax.plot(x_lin, lumpedReal2D[pointsIdx], "kx", label=f"HFM data")            # Plot HFM values as black crosses
-    ax.set_xticks(x_lin, xlabels)                                               # Disable x-axis ticks, as the x-axis is meaningless
+    ax.plot(x_lin, lumpedPredNorm2D[pointsIdx], "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction")  # Plot predicted values as a line plot
+    ax.plot(x_lin, lumpedRealNorm2D[pointsIdx], "kx", label=f"HFM data")            # Plot HFM values as black crosses
+    ax.set_xticks([], [])                                               # Disable x-axis ticks, as the x-axis is meaningless
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     ax.set_xlabel("Shape parameter variation cases", fontsize=10)
     ax.set_ylabel(r'$\dot{Q}$', fontsize=10)                                    # Set y-label
@@ -148,6 +149,36 @@ def predictionPlot(xv: np.ndarray,
     ax.legend(fontsize=10)                                                      # Finally, draw legend
     fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_2D.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
+    
+    # 2D (quantitative) error plot:
+    
+    fig, ax = plt.subplots(figsize=(4, 3))                                      # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    y_err = (np.abs(lumpedPredNorm2D - lumpedRealNorm2D) / np.abs(lumpedRealNorm2D))[:, 0]          # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
+    ax.plot(y_err, "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction error")  # Plot predicted values as a line plot
+    ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
+    ax.set_yscale('log')
+    ax.set_ylabel('Error', fontsize=14)                                         # Set y-label
+    ax.tick_params(axis='both', labelsize=10)                                   # Adjust tick label font size
+    ax.legend()                                                                 # Finally, draw legend
+    fig.savefig(plotDir / f'2D_error.pdf', bbox_inches='tight')                 # Save the generated figure as a PDF
+    plt.close(fig)                                                              # Close the figure and free up resources
+    
+    #fig, ax = plt.subplots(figsize=(4, 3))                                      # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    #y_mid = (np.abs(lumpedPred2D + lumpedReal2D) / 2)                           # Y-midpoints between predicted and HFM values (for errorbar plot, actual points will not be visible)
+    #x_lin = np.arange(len(lumpedPred2D))                                        # X-axis is a monotonically increasing sequence, one entry per predicted value
+    #y_lims = None if lumpedLimits2D is None else [limit for limit in lumpedLimits2D]
+    #y_err = (np.abs(lumpedPred2D - lumpedReal2D) / 2)                           # Y-half-errors between predicted and HFM values from each Y-midpoint (for errorbar plot, which is supplied a single symmetric error)
+    #print(max(y_err))
+    #ax.errorbar(x_lin, y_mid[:,0], xerr=0, yerr=y_err[:,0], fmt="k", marker="", ls="", alpha=0.2)  # Plot errorbar first (no points, just residuals), semi-transparent, highlighting the difference between predicted and HFM values
+    #if y_lims is not None:
+    #    ax.fill_between(x_lin, y_lims[0][:,0], y_lims[1][:,0], color='grey', alpha=0.5) 
+    
+    #ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
+    #ax.set_xlabel("Shape parameter variation cases", fontsize=10)
+    #ax.set_ylabel(r'$\dot{Q}$', fontsize=10)                                    # Set y-label
+    #ax.tick_params(axis='both', labelsize=6)                                    # Adjust tick label font size
+    #fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_2D.pdf', bbox_inches='tight')  # Save the generated figure as a PDF
+    #plt.close(fig)                                                              # Close the figure and free up resources
 
 def varPlot(predictedMax: list[Optional[torch.tensor]],
             predictedBaseline: list[Optional[torch.tensor]],
@@ -216,7 +247,7 @@ def varPlot(predictedMax: list[Optional[torch.tensor]],
         limitsMax[key] = None if predictedMax[1] is None else [predicted[i] for predicted in predictedMax[1:]] # Also extract limits from list of predicted quantitative data
     
     for key, yLabel in zip(relevantKeys, yLabels):                              # For each unique flow variable in the array, two plots will be created
-        fig, ax = plt.subplots(figsize=(6.4, 3))                                # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
+        fig, ax = plt.subplots(figsize=(4, 3))                                  # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
         for data, lims, colour, linestyle, plotLabel in zip([dataBaseline, dataMax, PredBaseline, PredMax],
                                                              [None, None, limitsBaseline, limitsMax],
                                                              mpl.colormaps['jet'](np.linspace(0, 1, 4)),
@@ -251,10 +282,13 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
         
     for checkpointFile in stateDictDir.glob("*.pt"):                            # Iterate over all checkpoint files in the model checkpoint directory
         if checkpointFile == stateDictDir / "optimalFeatureHistory.pt":
-           continue
-        fig, ax = plt.subplots()                                                # Create new figure with single subplot
-        ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
-        ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set")  # Load and plot validation set loss
+            continue
+        fig, ax = plt.subplots(figsize=(4, 3))                                  # Create new figure with single subplot
+        if str(checkpointFile).split("/")[-2] == "lnn" or str(checkpointFile).split("/")[-2] == "mnn" or str(checkpointFile).split("/")[-2] == "snn":
+            ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set")  # Load and plot validation set loss
+            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
+        else:
+            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
         ax.set_xlabel("Epoch")                                                  # Set the x-axis label as epoch
         ax.set_ylabel("Loss ($L^2$-norm)")                                      # Set the y-axis label as loss
         ax.set_yscale('log')
@@ -285,7 +319,7 @@ def historyPlot(plotParams: dict[str, Union[float, bool]],
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
         
     for checkpointFile in stateDictDir.glob("optimalFeatureHistory.pt"):        # Iterate over all checkpoint files in the model checkpoint directory
-        fig, ax = plt.subplots()                                                # Create new figure with single subplot
+        fig, ax = plt.subplots(figsize=(4, 3))                                  # Create new figure with single subplot
         ax.plot(torch.load(checkpointFile)["thpHistory"], c="m", label="$\dot{Q}$ history")  # Load and plot training set loss
         ax.set_xlabel("Epoch")                                                  # Set the x-axis label as epoch
         ax.set_ylabel("$\dot{Q}$")                                              # Set the y-axis label as loss
@@ -331,28 +365,28 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
         
         for freeVarName, freeVarIdx, xVarName, xVarIdx, xVarDType, xVarWidth in zip(["valSplit", "neurons"], [0, 2],
                                                                                     ["neurons", "valSplit"], [2, 0], [int, float], [0.9, 0.04]):
-            fig, ax = plt.subplots(figsize=(6.4, 3))                                # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
-            uniqueFreeVar = sorted(np.unique(lossTableVar[:, freeVarIdx]))          # Identify and sort all unique free variables (valSplit or neurons)
-            uniqueLayers = sorted(np.unique(lossTableVar[:, 1]))                    # Identify and sort all unique layer numbers
+            fig, ax = plt.subplots(figsize=(4, 3))                              # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
+            uniqueFreeVar = sorted(np.unique(lossTableVar[:, freeVarIdx]))      # Identify and sort all unique free variables (valSplit or neurons)
+            uniqueLayers = sorted(np.unique(lossTableVar[:, 1]))                # Identify and sort all unique layer numbers
             for freeVar, colour in zip(uniqueFreeVar, mpl.colormaps['jet'](np.linspace(0, 1, len(uniqueFreeVar)))):  # Identify each unique valSplit with a different colour
                 for layers, linestyle in zip(uniqueLayers, ["solid", "dotted", "dashed", "dashdot"]):  # Identify each unique layer count with a different linestyle
                     freeValLayerIdx = (lossTableVar[:, freeVarIdx] == freeVar) & (lossTableVar[:, 1] == layers)  # Identify which filtered table indices correspond to this valSplit-Layer combination
                     xData = lossTableVar[freeValLayerIdx, xVarIdx].astype(xVarDType)  # Extract ordered list of neurons (x-positions)
-                    sortedIdx = np.argsort(xData)                                   # Identify order of element indices that would return a sorted array (for plotting data in order)
-                    losses = lossTableVar[freeValLayerIdx, 4]                       # Extract corresponding array of loss arrays (per-sample)
+                    sortedIdx = np.argsort(xData)                               # Identify order of element indices that would return a sorted array (for plotting data in order)
+                    losses = lossTableVar[freeValLayerIdx, 4]                   # Extract corresponding array of loss arrays (per-sample)
                     lossMean = np.array([np.mean(loss, axis=-1) for loss in losses], dtype=float)  # Compute corresponding list of mean losses (y-positions)
                     ax.plot(xData[sortedIdx], lossMean[sortedIdx], label=fr"{freeVarName} $={freeVar}$, layers $={layers}$", color=colour, marker="x", linestyle=linestyle, alpha=0.8)  # Plot per-valSplit/Layer line for final loss vs neuron count
                     
-                    figInner, axInner = plt.subplots(figsize=(6.4, 3))              # Create an inner figure, containing only a single line and showing per-architecture loss distribution
+                    figInner, axInner = plt.subplots(figsize=(4, 3))            # Create an inner figure, containing only a single line and showing per-architecture loss distribution
                     axInner.plot(xData[sortedIdx], lossMean[sortedIdx], color=colour, linestyle=linestyle, label=fr"{freeVarName} $={freeVar}$, layers $={layers}$")  # Plot line as before (violin plot cannot connect lines)
                     violingParts = axInner.violinplot(losses, xData, showmeans=True, widths=xVarWidth)  # Also plot violin plot, showing minima, maxima, means and the data distribution)
-                    for key, value in violingParts.items():                         # For each part of the violin plot
-                        if key == "bodies":                                         # If the part is "bodies", this is a list of bodies
-                            for body in value:                                      # Change the face colour of each body
+                    for key, value in violingParts.items():                     # For each part of the violin plot
+                        if key == "bodies":                                     # If the part is "bodies", this is a list of bodies
+                            for body in value:                                  # Change the face colour of each body
                                 body.set_facecolor(colour)
-                        else:                                                       # Otherwise, each item is a single object
-                            value.set_color(colour)                                 # Change its colour to match the line plot
-                    axInner.legend(loc="upper right")                               # Add a legend to the axis (inside) upper right corner
+                        else:                                                   # Otherwise, each item is a single object
+                            value.set_color(colour)                             # Change its colour to match the line plot
+                    axInner.legend(loc="upper right")                           # Add a legend to the axis (inside) upper right corner
                     _format_and_save_fig(figInner, axInner, xVarName.capitalize(), xData, f"mlBenchmark_x{xVarName.capitalize()}_{var}_{freeVarName}={freeVar}_layers={layers}.pdf")
                 
             legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), ncol=3)  # Add legend outside of axis, and split into columns based on number of entries
