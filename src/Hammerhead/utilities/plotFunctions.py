@@ -125,7 +125,7 @@ def predictionPlot(xv: np.ndarray,
     
     # 2D (quantitative) prediction plot:
     
-    fig, ax = plt.subplots(figsize=(6.4, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    fig, ax = plt.subplots(figsize=(2.5, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
     points_num = min(60, len(lumpedRealNorm2D))                                 # Select a maximum amount of points to show in the quantitative plot, no more than 60
     pointsIdx = random.choices(np.arange(len(lumpedRealNorm2D)), k=points_num)  # Take a random selection of the THP array to show in the quantitative plot
     x_lin = np.arange(points_num)                                               # X-axis is a monotonically increasing sequence, one entry per predicted value
@@ -151,14 +151,15 @@ def predictionPlot(xv: np.ndarray,
     
     # 2D (quantitative) error plot:
     
-    fig, ax = plt.subplots(figsize=(4, 3))                                      # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
+    fig, ax = plt.subplots(figsize=(2.5, 3))                                    # Create a new 2D figure (default = (6.4, 4.8),  wide = (6.4, 3.0))
     y_err = (np.abs(lumpedPredNorm2D - lumpedRealNorm2D) / np.abs(lumpedRealNorm2D))[:, 0]  # Y relative errors between predicted and HFM values
-    ax.plot(y_err, "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction error")  # Plot Y relative errors
+    ax.plot(y_err, "m.", label=f"{stateDictDir.parts[pivotIdx + 3].capitalize()} prediction error", linewidth=0.5, markersize=2)  # Plot Y relative errors
     ax.set_xticks([], [])                                                       # Disable x-axis ticks, as the x-axis is meaningless
     ax.set_yscale('log')                                                        # Set the y-axis scale as log
-    ax.set_ylabel('Error', fontsize=14)                                         # Set y-label
-    ax.tick_params(axis='both', labelsize=10)                                   # Adjust tick label font size
+    ax.set_ylabel('$Relative$ $Error$', fontsize=10)                                         # Set y-label
+    ax.tick_params(axis='both', labelsize=6)                                   # Adjust tick label font size
     ax.legend()                                                                 # Finally, draw legend
+    plt.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
     fig.savefig(plotDir / f'2D_error.pdf', bbox_inches='tight')                 # Save the generated figure as a PDF
     plt.close(fig)                                                              # Close the figure and free up resources
 
@@ -267,14 +268,15 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
             continue
         fig, ax = plt.subplots(figsize=(4, 3))                                  # Create new figure with single subplot
         if str(checkpointFile).split("/")[-2] == "lnn" or str(checkpointFile).split("/")[-2] == "mnn" or str(checkpointFile).split("/")[-2] == "snn":
-            ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set")  # Load and plot validation set loss
-            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
+            ax.plot(torch.load(checkpointFile)["lossValid"], c="c", label="Validation set", linewidth=0.5, markersize=2)  # Load and plot validation set loss
+            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set", linewidth=0.5, markersize=2)  # Load and plot training set loss
         else:
-            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set")  # Load and plot training set loss
-        ax.set_xlabel("Epoch")                                                  # Set the x-axis label as epoch
-        ax.set_ylabel("Loss ($L^2$-norm)")                                      # Set the y-axis label as loss
+            ax.plot(torch.load(checkpointFile)["lossTrain"], c="m", label="Training set", linewidth=0.5, markersize=2)  # Load and plot training set loss
+        ax.set_xlabel("$\mathrm{Epoch}$", fontsize=10)                          # Set the x-axis label as epoch
+        ax.set_ylabel("$\mathrm{J}$", fontsize=10)                              # Set the y-axis label as loss
         ax.set_yscale('log')
-        ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
+        ax.tick_params(axis='both', labelsize=6)                               # Modify the tick label size
+        plt.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
         ax.legend()                                                             # Add a legend, containing the fixed parameter values label
         fig.savefig(plotDir / f"loss_{checkpointFile.stem}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources
@@ -301,11 +303,12 @@ def historyPlot(plotParams: dict[str, Union[float, bool]],
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
         
     for checkpointFile in stateDictDir.glob("optimalFeatureHistory.pt"):        # Iterate over all checkpoint files in the model checkpoint directory
-        fig, ax = plt.subplots(figsize=(4, 3))                                  # Create new figure with single subplot
-        ax.plot(torch.load(checkpointFile)["thpHistory"], c="m", label="$\dot{Q}$ history")  # Load and plot training set loss
-        ax.set_xlabel("Epoch")                                                  # Set the x-axis label as epoch
-        ax.set_ylabel("$\dot{Q}$")                                              # Set the y-axis label as loss
-        ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
+        fig, ax = plt.subplots(figsize=(5.9, 3))                                # Create new figure with single subplot
+        ax.plot(torch.load(checkpointFile)["thpHistory"], c="m", label="$\dot{Q}$ history", linewidth=0.5, markersize=2)  # Load and plot training set loss
+        ax.set_xlabel("$\mathrm{Epoch}$", fontsize=10)                          # Set the x-axis label as epoch
+        ax.set_ylabel("$\dot{Q}$", fontsize=10)                                 # Set the y-axis label as loss
+        ax.tick_params(axis='both', labelsize=6)                                # Modify the tick label size
+        plt.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
         ax.legend()                                                             # Add a legend, containing the fixed parameter values label
         fig.savefig(plotDir / f"thpHistory_{checkpointFile.stem}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
         plt.close(fig)                                                          # Close the figure and free up resources
@@ -326,6 +329,7 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
     -------
     None
     """
+    
     pivotIdx = modelDir.parts.index("mlData")
     plotDir = Path(*modelDir.parts[:pivotIdx], "mlPlots", *modelDir.parts[pivotIdx + 1:])  # Construct plot directory (same format as state dict path, but mlData is now mlPlots)
     plotDir.mkdir(parents=True, exist_ok=True)                                  # Create the directory where plots will be stored (if it doesn't yet exist)
@@ -333,46 +337,55 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
     rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
     
-    def _format_and_save_fig(fig, ax, xLabel, xTicks, figName, **kwargs):
-        ax.set_xlabel(xLabel, fontsize=14)                                      # Set the x-axis label as neuron count
-        ax.set_ylabel("Loss ($L^2$-norm)", fontsize=14)                         # Set the y-axis label as loss
-        ax.tick_params(axis='both', labelsize=10)                               # Modify the tick label size
-        ax.set_yscale('log')
-        ax.set_xticks(xData)                                                    # Only show ticks for existing values
-        fig.savefig(plotDir / figName, bbox_inches='tight', **kwargs)           # Save the generated figure as a PDF
-        plt.close(fig)                                                          # Close the figure and free up resources
+    if "Kernel" in lossTable[0, 1]:
+        varNames, varIdxs, xVartypes, xVarwidths, lineVar = ["valSplit", "nu"], [0, 2], [float, float], [0.04, 0.04], "kernel"
+    else:
+        varNames, varIdxs, xVartypes, xVarwidths, lineVar = ["valSplit", "neurons"], [0, 2], [int, float], [0.9, 0.04], "layers"
     
-    for var in np.unique(lossTable[:, 3]):                                      # For each unique flow variable in the array, two plots will be created
-        lossTableVar = lossTable[lossTable[:, 3] == var]                        # Filter table such that it now only contains entries for the current flow variable
-        
-        for freeVarName, freeVarIdx, xVarName, xVarIdx, xVarDType, xVarWidth in zip(["valSplit", "neurons"], [0, 2],
-                                                                                    ["neurons", "valSplit"], [2, 0], [int, float], [0.9, 0.04]):
-            fig, ax = plt.subplots(figsize=(4, 3))                              # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
-            uniqueFreeVar = sorted(np.unique(lossTableVar[:, freeVarIdx]))      # Identify and sort all unique free variables (valSplit or neurons)
-            uniqueLayers = sorted(np.unique(lossTableVar[:, 1]))                # Identify and sort all unique layer numbers
-            for freeVar, colour in zip(uniqueFreeVar, mpl.colormaps['jet'](np.linspace(0, 1, len(uniqueFreeVar)))):  # Identify each unique valSplit with a different colour
-                for layers, linestyle in zip(uniqueLayers, ["solid", "dotted", "dashed", "dashdot"]):  # Identify each unique layer count with a different linestyle
-                    freeValLayerIdx = (lossTableVar[:, freeVarIdx] == freeVar) & (lossTableVar[:, 1] == layers)  # Identify which filtered table indices correspond to this valSplit-Layer combination
-                    xData = lossTableVar[freeValLayerIdx, xVarIdx].astype(xVarDType)  # Extract ordered list of neurons (x-positions)
-                    sortedIdx = np.argsort(xData)                               # Identify order of element indices that would return a sorted array (for plotting data in order)
-                    losses = lossTableVar[freeValLayerIdx, 4]                   # Extract corresponding array of loss arrays (per-sample)
-                    lossMean = np.array([np.mean(loss, axis=-1) for loss in losses], dtype=float)  # Compute corresponding list of mean losses (y-positions)
-                    ax.plot(xData[sortedIdx], lossMean[sortedIdx], label=fr"{freeVarName} $={freeVar}$, layers $={layers}$", color=colour, marker="x", linestyle=linestyle, alpha=0.8)  # Plot per-valSplit/Layer line for final loss vs neuron count
+    rows, cols = int(np.ceil(np.unique(lossTable[:, 3]).shape[0]/3)), 3 if np.unique(lossTable[:, 3]).shape[0] == 6 else 2
+    figThickness = 3.5 if np.unique(lossTable[:, 3]).shape[0] == 6 else 2
+    rowsIdx, colsIdx = [0,0] if np.unique(lossTable[:, 3]).shape[0] == 2 else [0,0,0,1,1,1], [0,1] if np.unique(lossTable[:, 3]).shape[0] == 2 else [0,1,2,0,1,2]
+    
+    for freeVarName, freeVarIdx, xVarName, xVarIdx, xVarDType, xVarWidth in zip(varNames, varIdxs, varNames[::-1], varIdxs[::-1], xVartypes, xVarwidths):
+        uniqueFreeVarPre = sorted(np.unique(lossTable[:, freeVarIdx]))          # Identify and sort all unique free variables (valSplit or neurons)
+        for freeVar in uniqueFreeVarPre:                                        # Identify each unique valSplit
+            fig, ax = plt.subplots(rows, cols, squeeze=False, figsize=(5.9, figThickness), sharey=True, sharex=True)  # Create "wide" figure, with neuron count on x-axis and unique valSplit/Layer combinations as lines
+            for var, row, col in zip(np.unique(lossTable[:, 3]),                # For each unique flow variable in the array, two plots will be created
+                                     rowsIdx, colsIdx):                          
+                lossTableVar = lossTable[lossTable[:, 3] == var]                # Filter table such that it now only contains entries for the current flow variable
+                uniqueLines = sorted(np.unique(lossTableVar[:, 1]))             # Identify and sort all unique layer numbers
+                for linesPlot, linestyle, colour in zip(uniqueLines,
+                                                        ["solid", "dotted", "dashed", "dashdot"],
+                                                        mpl.colormaps['viridis'](np.linspace(0, 1, len(uniqueLines)+1))):  # Identify each unique layer count with a different linestyle and a different colour
                     
-                    figInner, axInner = plt.subplots(figsize=(4, 3))            # Create an inner figure, containing only a single line and showing per-architecture loss distribution
-                    axInner.plot(xData[sortedIdx], lossMean[sortedIdx], color=colour, linestyle=linestyle, label=fr"{freeVarName} $={freeVar}$, layers $={layers}$")  # Plot line as before (violin plot cannot connect lines)
-                    violingParts = axInner.violinplot(losses, xData, showmeans=True, widths=xVarWidth)  # Also plot violin plot, showing minima, maxima, means and the data distribution)
+                    freeValLineIdx = (lossTableVar[:, freeVarIdx] == freeVar) & (lossTableVar[:, 1] == linesPlot)  # Identify which filtered table indices correspond to this valSplit-Layer combination
+                    xData = lossTableVar[freeValLineIdx, xVarIdx].astype(xVarDType)  # Extract ordered list of neurons (x-positions)
+                    sortedIdx = np.argsort(xData)                               # Identify order of element indices that would return a sorted array (for plotting data in order)
+                    losses = lossTableVar[freeValLineIdx, 4]                    # Extract corresponding array of loss arrays (per-sample)
+                    lossMean = np.array([np.mean(loss, axis=-1) for loss in losses], dtype=float)  # Compute corresponding list of mean losses (y-positions)
+                    if lineVar == "layers":
+                        ax[row,col].plot(range(1,len(xData)+1), lossMean[sortedIdx], label=f"$\mathrm{{{lineVar}}} =\mathrm{{{linesPlot}}}$", marker='x', markersize=2, color=colour, linestyle=linestyle, linewidth=0.5)  # Plot per-valSplit/Layer line for final loss vs neuron count
+                        violingParts = ax[row,col].violinplot(losses[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=xVarWidth)  # Also plot violin plot, showing minima, maxima, means and the data distribution)
+                    elif lineVar == "kernel":
+                        ax[row,col].plot(xData[sortedIdx], lossMean[sortedIdx], label=f"$\mathrm{{{lineVar}}} =\mathrm{{{linesPlot}}}$", marker='x', markersize=2, color=colour, linestyle=linestyle, linewidth=0.5)  # Plot per-valSplit/Layer line for final loss vs neuron count
+                        violingParts = ax[row,col].violinplot(losses[sortedIdx], xData[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=xVarWidth)  # Also plot violin plot, showing minima, maxima, means and the data distribution)
                     for key, value in violingParts.items():                     # For each part of the violin plot
                         if key == "bodies":                                     # If the part is "bodies", this is a list of bodies
                             for body in value:                                  # Change the face colour of each body
                                 body.set_facecolor(colour)
                         else:                                                   # Otherwise, each item is a single object
                             value.set_color(colour)                             # Change its colour to match the line plot
-                    axInner.legend(loc="upper right")                           # Add a legend to the axis (inside) upper right corner
-                    _format_and_save_fig(figInner, axInner, xVarName.capitalize(), xData, f"mlBenchmark_x{xVarName.capitalize()}_{var}_{freeVarName}={freeVar}_layers={layers}.pdf")
-                
-            legend = ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.20), ncol=3)  # Add legend outside of axis, and split into columns based on number of entries
-            _format_and_save_fig(fig, ax, xVarName.capitalize(), xData, f"mlBenchmark_x{xVarName.capitalize()}_{var}.pdf", bbox_extra_artists=[legend])
+                            value.set_linewidth(0.5)
+                if lineVar == "layers":
+                    ax[row,col].set_xticks(range(1,len(xData)+1),xData[sortedIdx])
+                ax[row,col].legend(fontsize=6)
+                ax[row,col].tick_params(axis='both', labelsize=6)          # Modify the tick label size
+                ax[row,col].set_yscale('log')
+                ax[row,col].grid(which="both", axis="both", alpha=0.5, linewidth=0.1)
+                ax[-1,col].set_xlabel(f"$\mathrm{{{xVarName.capitalize()}}}$", fontsize=8)  # Set the x-axis label as neuron count
+                ax[row,0].set_ylabel("$\mathrm{J}$", fontsize=8)                    # Set the y-axis label as loss
+            fig.savefig(plotDir / f"mlBenchmark_x{xVarName.capitalize()}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
+            plt.close(fig)                                                          # Close the figure and free up resources
 
 ###############################################################################
 

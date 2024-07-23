@@ -407,29 +407,39 @@ def getBenchmarkPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task benchmark plot function arguments
     """
     lossPlotTaskArgs = []
+    plotTasksRBF = set(plotTasks) & {"lrbf", "mrbf", "srbf"}                    # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     plotTasksNN = set(plotTasks) & {"lnn", "mnn", "snn"}                        # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
+    plotTasksGP = set(plotTasks) & {"lgp", "mgp", "sgp"}                        # Set intersection of requested and possible plot tasks represents the set of models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
         
             lossTable = {}
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
                 if stateDictDir.is_dir():                                       # If the state dict path is a valid directory
-                    if plotTask in plotTasksNN:
+                    for taskNN in plotTasksNN:
                         _, valSplit, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
-                    else:
-                        valSplit = float(stateDictDir.name.split("_")[1])
-                    for varStateDict in stateDictDir.glob("*.pt"):              # for each variable inside the state dict folder
-                        if plotTask in plotTasksNN:
+                        for varStateDict in stateDictDir.glob("*.pt"):              # for each variable inside the state dict folder
                             key = (valSplit, layers, neurons, varStateDict.stem)  # set dictionary key as the current NN architecture and flow variable
-                        elif stateDictDir.name.split("_")[3] == "MaternKernel":
-                            key = (valSplit, stateDictDir.name.split("_")[3], float(stateDictDir.name.split("_")[4]), varStateDict.stem)
+                            loss = torch.load(varStateDict)["lossTrain"][-1]        # extract the last loss from the variable state dictionary
+                            if key in lossTable:                                    # if this combination of NN architecture and flow variable has been seen before, a list of loss values already exists
+                                lossTable[key].append(loss)                         # ... therefore, append to the list
+                            else:                                                   # if this combination is new ...
+                                lossTable[key] = [loss]                             # ... a list of per-sample losses needs to be created (including the now first-seen loss)
+                    for taskGP in plotTasksGP:
+                        if stateDictDir.name.split("_")[3] == "MaternKernel":
+                            _, valSplit, _, kernels, nu, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
                         else:
-                            key = (valSplit, stateDictDir.name.split("_")[3], varStateDict.stem)
-                        loss = torch.load(varStateDict)["lossTrain"][-1]        # extract the last loss from the variable state dictionary
-                        if key in lossTable:                                    # if this combination of NN architecture and flow variable has been seen before, a list of loss values already exists
-                            lossTable[key].append(loss)                         # ... therefore, append to the list
-                        else:                                                   # if this combination is new ...
-                            lossTable[key] = [loss]                             # ... a list of per-sample losses needs to be created (including the now first-seen loss)
+                            _, valSplit, _, kernels, _, _ = stateDictDir.name.split("_")  # extract validation split, layers and neurons from state dict path name
+                        for varStateDict in stateDictDir.glob("*.pt"):              # for each variable inside the state dict folder
+                            if stateDictDir.name.split("_")[3] == "MaternKernel":
+                                key = (valSplit, kernels, nu, varStateDict.stem)
+                            else:
+                                key = (valSplit, kernels, varStateDict.stem)
+                            loss = torch.load(varStateDict)["lossTrain"][-1]        # extract the last loss from the variable state dictionary
+                            if key in lossTable:                                    # if this combination of NN architecture and flow variable has been seen before, a list of loss values already exists
+                                lossTable[key].append(loss)                         # ... therefore, append to the list
+                            else:                                                   # if this combination is new ...
+                                lossTable[key] = [loss]                             # ... a list of per-sample losses needs to be created (including the now first-seen loss)
                             
             if lossTable:                                                       # if the loss table isn't empty, we can convert it to an array
                 lossTableTemp = [[*key, np.array(value)] for key, value in lossTable.items() if len(value) > 0]  # convert dictionary to a list of lists with columns [valSplit, layers, neurons, var, dataArr] (discarding any empty entries)
