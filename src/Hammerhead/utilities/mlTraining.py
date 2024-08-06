@@ -39,7 +39,7 @@ def NN(featureSize: int,
        varName: str,
        outputDir: Path,
        maxEpochs: int = int(9e4),
-       lossTarget: float = 1e-7,
+       lossTarget: float = 1e-9,
        **kwargs) -> None:
     """
     Neural Network (NN) training process
@@ -64,8 +64,8 @@ def NN(featureSize: int,
     None
     """
     network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
-    optimizer = torch.optim.Adam(                                               # Object to hold and update hyperparameter state of the model throughout training
-        network.parameters(), lr=1e-2, weight_decay=0)                          # These parameters seem to work for this particular problem
+    optimizer = torch.optim.RMSprop(                                               # Object to hold and update hyperparameter state of the model throughout training
+        network.parameters(), lr=1e-2)                          # These parameters seem to work for this particular problem
     lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)
     lossTrainList, lossValidList = [], []                                       # History of all computed losses during training    
     

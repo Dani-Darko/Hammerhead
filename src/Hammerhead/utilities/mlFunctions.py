@@ -155,7 +155,6 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
         print(f"Loading tensors for Re={tensorDir.stem.split('_')[1]} and modes={trainingParams['modes']} from {tensorDir} for ML/RBF training")
         tensors = {tensor: torch.load(tensorDir / f"{tensor}Data.pt") for tensor in ["modal", "spatial", "lumped"]}  # Load the necessary tensors and store them in a dictionary by name
         tensors["x"] = torch.load(tensorDir / "xData.pt")["x"]                  # Additionally, load the standardised x tensor from xData.pt
-        
         dataSize, featureSize = tensors["x"].shape                              # Shape of the full data set, where shape[0] is the number of processed cases and shape[1] is the number of features
         for n in tqdm(range(trainingParams["samples"]), desc="Processing samples", leave=False):  # Repeat training "samples" times, each time using a different random validationSplit seed and different initial hyperparameters
             for validationSplit in (valPBar := tqdm(trainingParams["validationSplit"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
@@ -163,30 +162,31 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
                     modelPBar.set_description(f"Processing model={modelName}")  # Update progress bar with current model
                     for var in (varPBar := tqdm(models[modelName]["variables"], leave=False)):  # Also iterate over all variables available for this model (with labelled progress bar)
                         valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
-                        featMaxIdx = [set(np.where(tensors["x"][:,i]==max(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
-                        featMinIdx = [set(np.where(tensors["x"][:,i]==min(tensors["x"][:,i]))[0]) for i in range(tensors["x"].shape[1])]
-                        outMaxIdx = [set(np.where(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]==max(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]))[0]) for i in range(tensors[ models[modelName]["dimensionType"] ][ var ].shape[1])]
-                        outMinIdx = [set(np.where(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]==min(tensors[ models[modelName]["dimensionType"] ][ var ][:,i]))[0]) for i in range(tensors[ models[modelName]["dimensionType"] ][ var ].shape[1])]
-                        BMIdx = []
-                        for i in range(len(featMaxIdx)):
-                            Idx = [item for item in featMaxIdx[i]]
-                            BMIdx = BMIdx + Idx
-                        for i in range(len(featMinIdx)):
-                            Idx = [item for item in featMinIdx[i]]
-                            BMIdx = BMIdx + Idx
-                        for i in range(len(outMaxIdx)):
-                            Idx = [item for item in outMaxIdx[i]]
-                            BMIdx = BMIdx + Idx
-                        for i in range(len(outMinIdx)):
-                            Idx = [item for item in outMinIdx[i]]
-                            BMIdx = BMIdx + Idx
-                        BMIdx = list(set(BMIdx))
-                        indexSequence = list(np.arange(dataSize))
-                        indexSequence = [item for item in indexSequence if item not in (BMIdx)]
+                        featMax, _ = torch.max(tensors["x"], 0)
+                        tensors["x"][torch.eq(tensors["x"], 0.)] = float("inf")
+                        featMin, _ = torch.min(tensors["x"], 0)
+                        tensors["x"][torch.eq(tensors["x"], float("inf"))] = 0.
+                        feat0, _ = torch.min(tensors["x"], 0)
+                        Qvalue = tensors[ models[ modelName ]["dimensionType"] ][ var ]
+                        _, featMeanValue = torch.std_mean(tensors["x"], 0, keepdim=True)
+                        _, featMeanIdx = torch.min(abs(tensors["x"] - featMeanValue), 0)
+                        outputMax, _ = torch.max(Qvalue, 0)
+                        outputMin, _ = torch.min(Qvalue, 0)
+                        featMaxBool, featMinBool, feat0Bool = torch.eq(tensors["x"], featMax), torch.eq(tensors["x"], featMin), torch.eq(tensors["x"], feat0)
+                        outMaxBool, outMinBool = torch.eq(Qvalue, outputMax), torch.eq(Qvalue, outputMin)
+                        BMorBool, QorBool = torch.logical_or(featMaxBool, featMinBool), torch.logical_or(outMaxBool, outMinBool)
+                        BMor0Bool, BMallBool, QallBool = torch.logical_or(BMorBool, feat0Bool), torch.all(BMorBool, 1), torch.all(QorBool, 1)
+                        BManyBool, endBool = torch.any(BMor0Bool, 1), torch.logical_or(BMallBool, QallBool)
+                        BManyIdx, endIdx, BMstartIdx = torch.arange(dataSize)[BManyBool], torch.arange(dataSize)[endBool], torch.arange(dataSize)[~BManyBool]
                         validSize = int(np.floor(validationSplit * dataSize))   # Compute the size of the validation data set, default is 35% of full data set for validation
-                        indices = random.sample(indexSequence, k=(len(indexSequence))) + random.sample(BMIdx, k=(len(BMIdx)))  # Get a randomly arranged list of indices for the full data set
-                        trainIdx, validIdx = indices[validSize:], indices[:validSize]  # Split all indices into two groups: indices that will address the training and the validation data sets
-                
+                        for item in endIdx:
+                            BManyIdx = BManyIdx[BManyIdx!=item]
+                        for item in featMeanIdx:
+                            BMstartIdx = BMstartIdx[BMstartIdx!=item]
+                        BMstartIdx, BManyIdx = BMstartIdx[torch.randperm(BMstartIdx.shape[0])], BManyIdx[torch.randperm(BManyIdx.shape[0])]
+                        indices = torch.hstack((BMstartIdx, BManyIdx, BMstartIdx, endIdx))
+                        trainIdx, validIdx = indices[validSize:], indices[:validSize]
+
                         xTrain = tensors["x"][trainIdx, :]                      # Select the training cases from the xData tensor
                         xValid = tensors["x"][validIdx, :]                      # Select the validation cases from the xData tensor
                         
