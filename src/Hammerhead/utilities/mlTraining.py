@@ -64,8 +64,8 @@ def NN(featureSize: int,
     None
     """
     network = Network(featureSize, dimensionSize, neurons, layers)              # Create instance of neural network class
-    optimizer = torch.optim.RMSprop(                                               # Object to hold and update hyperparameter state of the model throughout training
-        network.parameters(), lr=1e-2)                          # These parameters seem to work for this particular problem
+    optimizer = torch.optim.AdamW(                                              # Object to hold and update hyperparameter state of the model throughout training
+        network.parameters(), lr=1e-2)                                          # These parameters seem to work for this particular problem
     lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)
     lossTrainList, lossValidList = [], []                                       # History of all computed losses during training    
     
