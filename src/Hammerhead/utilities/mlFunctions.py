@@ -124,8 +124,6 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int) -> None:
     
     tensorDirs = [tensorDir for tensorDir in Path(f"./mlData/{domain}").glob("*")  # Get list of paths for all tensor directories in ./mlData/{domain}
                   if (tensorDir.is_dir()                                        # ... filter out all non-directory entries
-                      and int(tensorDir.stem.split("_")[-1]) == 1
-                      and tensorDir.stem.split("_")[1] == "500"
                       and int(tensorDir.stem.split("_")[3]) == trainingParams["modes"])]  # ... only accept directories that contain tensors with the requested number of modes
     if len(tensorDirs) == 0:                                                    # If there are no tensor directories available for the requested domain and number of modes in ./mlData, exit
         print(f"No modes={trainingParams['modes']} tensor directories found in ./mlData/{domain} for model training process!")
