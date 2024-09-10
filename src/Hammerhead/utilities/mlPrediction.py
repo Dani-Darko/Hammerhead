@@ -1,4 +1,3 @@
-
 ##############################################################################################
 #                                                                                            #
 #       HAMMERHEAD - Harmonic MOO Model Expedient for the Reduction                          #
@@ -14,16 +13,15 @@
 
 # IMPORTS: HAMMERHEAD files ###############################################################################################################
 
-from utilities.dataProcessing import (unstandardiseTensor,                      # Utilities -> Reverting standardised data into original (expanded) data
+from utilities.dataProcessing import (denormaliseTensor,                        # Utilities -> Reverting normalised data into original (expanded) data
                                       lumpedDataCalculation)                    # Utilities -> THP computation
 from utilities.mlClasses import (Network,                                       # Utilities -> Neural Network class
                                  Kriging)                                       # Utilities -> Gaussian Process class
-from utilities.plotFunctions import varPlot
 
 # IMPORTS: Others #########################################################################################################################
 
 from pathlib import Path                                                        # Others -> Path manipulation tools
-from scipy.optimize import minimize, line_search, least_squares, differential_evolution, nnls, basinhopping
+from scipy.optimize import differential_evolution                               # Others -> Stochastic minimisation algorithm
 from typing import Any, Optional                                                # Others -> Python type hinting
 
 import gpytorch                                                                 # Others -> Gaussian Process tools
@@ -31,12 +29,12 @@ import torch                                                                    
 
 ###########################################################################################################################################
 
-def NN(name: str,
+def NN(modelName: str,
        featureSize: int,
        dimensionSize: int,
        xPred: torch.tensor,
-       outputMean: torch.tensor,
-       outputStd: torch.tensor,
+       outputMin: torch.tensor,
+       outputMax: torch.tensor,
        varName: str,
        stateDictDir: Path,
        VTReduced: torch.tensor = None,
@@ -46,12 +44,12 @@ def NN(name: str,
     
     Parameters
     ----------
-    name : str                          Name of model (used for loading training data)
+    modelName : str                     Name of model (defines output size)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
     xPred  : torch.tensor               Feature tensor used for prediction
-    outputMean : torch.tensor           Mean of output tensor
-    outputStd : torch.tensor            Stadard deviation of the output tensor
+    outputMin : torch.tensor            Min values of the output tensor
+    outputMax : torch.tensor            Max values of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
     stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
@@ -71,14 +69,15 @@ def NN(name: str,
     
     with torch.no_grad():                                                       # Disable gradient calculation for prediction purposes
         data = network(xPred)                                                   # Produce the prediction
-    dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
+    dataExpanded = denormaliseTensor(data, outputMin, outputMax)                # Denormalise (expand) the data
     
-    return torch.mm(dataExpanded, VTReduced) if name == "mnn" else dataExpanded, None, None  # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    return torch.mm(dataExpanded, VTReduced) if modelName[0] == "M" else dataExpanded, None, None 
 
-def RBF(name: str,
+def RBF(modelName: str,
         xPred: torch.tensor,
-        outputMean: torch.tensor,
-        outputStd: torch.tensor,
+        outputMin: torch.tensor,
+        outputMax: torch.tensor,
         varName: str,
         stateDictDir: Path,
         VTReduced: torch.tensor,
@@ -88,10 +87,10 @@ def RBF(name: str,
     
     Parameters
     ----------
-    name : str                          Name of model (used for loading training data)
+    modelName : str                     Name of model (defines output size)
     xPred  : torch.tensor               Feature tensor used for prediction
-    outputMean : torch.tensor           Mean of output tensor
-    outputStd : torch.tensor            Stadard deviation of the output tensor
+    outputMin : torch.tensor            Min values of the output tensor
+    outputMax : torch.tensor            Max values of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
     stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
@@ -102,19 +101,21 @@ def RBF(name: str,
     outputUpperTensor : None            Upper confidence limit not computed by this model
     outputLowerTensor : None            Lower confidence limit not computed by this model
     """
-    rbfi = torch.load(stateDictDir / f"{varName}.pt")                           # Load the stored trained RBFI object (interally uses pickle)
+    rbfi = torch.load(stateDictDir / f"{varName}.pt")['modelState']             # Load the stored trained RBFI object (interally uses pickle)
     
     data = torch.from_numpy(rbfi(xPred.detach())).float()                       # Produce the prediction
-    dataExpanded = unstandardiseTensor(data, outputMean, outputStd)             # Unstandardise (expand) the data
-    return torch.mm(dataExpanded, VTReduced) if name == "mrbf" else dataExpanded, None, None  # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    dataExpanded = denormaliseTensor(data, outputMin, outputMax)                # Denormalise (expand) the data
+    
+    # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    return torch.mm(dataExpanded, VTReduced) if modelName[0] == "M" else dataExpanded, None, None 
 
     
-def GP(name: str,
+def GP(modelName: str,
        featureSize: int,
        dimensionSize: int,
        xPred: torch.tensor,
-       outputMean: torch.tensor,
-       outputStd: torch.tensor,
+       outputMin: torch.tensor,
+       outputMax: torch.tensor,
        varName: str,
        stateDictDir: Path,
        VTReduced: torch.tensor = None,
@@ -124,13 +125,12 @@ def GP(name: str,
     
     Parameters
     ----------
+    modelName : str                     Name of model (defines output size)
     featureSize : int                   Number of features in input tensor
     dimensionSize : int                 Dimension of the output tensor
-    kernel: str                         Kernel type of the covariance matrix
-    maternNu: float                     Smoother for the MaternKernel
     xPred  : torch.tensor               Feature tensor used for prediction
-    outputMean : torch.tensor           Mean of output tensor
-    outputStd : torch.tensor            Stadard deviation of the output tensor
+    outputMin : torch.tensor            Min values of the output tensor
+    outputMax : torch.tensor            Max values of the output tensor
     varName : str                       Variable name (used for labelling stored training data)
     stateDictDir : str                  Trained data storage directory
     VTReduced : torch.tensor            PCA left eigenvector data
@@ -141,20 +141,16 @@ def GP(name: str,
     outputUpperTensor : torch.tensor    Prediction output upper confidence limit tensor
     outputLowerTensor : torch.tensor    Prediction output lower confidence limit tensor
     """
-    trainingData = torch.load(stateDictDir / f"{varName}.pt")                   # Load the file where the dictionary of model parameters and data is stored
+    trainingData = torch.load(stateDictDir / f"{varName}.pt")                   # Load the dictionary of model parameters and training data
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with from the file
-    kernel = (stateDictDir.name.split("_"))[3]                                  # Infer the kernel the model was trained with from the directory name
-    if kernel == "MaternKernel" or kernel == "PolynomialKernel":                # Matern and Polyinomial kernels require extra parameters ...
-        maternNu = float(stateDictDir.name.split("_")[4])                       # ... Infer these parameters from the directory name ...
-    else:
-        maternNu = 0                                                            # ... Or make them zero for the rest of kernels to ignore the value within the mlClases.py
+    kernel = getattr(gpytorch.kernels, (stateDictDir.name.split("_"))[3])       # Infer the kernel the model was trained with from the directory name
     
-    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood(noise=torch.tensor(1e-6)) for _ in range(dimensionSize)]  # Gpytorch works with a single output, a list of likelihoods is produced for a multi-output model
-    modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], kernel, maternNu, featureSize, dimensionSize) for i in range(dimensionSize)]  # Gpytorch works with a single output, a list of models is produced for a multi-output model
+    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood(noise=torch.tensor(1e-7)) for _ in range(dimensionSize)]  # GPyTorch works with a single output, a list of likelihoods is produced for a multi-output model
+    modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], kernel, featureSize, dimensionSize) for i in range(dimensionSize)]  # GPyTorch works with a single output, a list of models is produced for a multi-output model
     modelLikelihood = [independentModel.likelihood for independentModel in modelPrev]  # Link each output point likelihood function to an output point model
     
     model = gpytorch.models.IndependentModelList(*modelPrev)                    # Create a Gaussian Process model from modelPrev (list of sub-models)
-    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood)          # Create likelihood object from list of previously created list of likelyhoods 
+    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood)          # Create likelihood object from list of previously created list of likelihoods 
     
     model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
     
@@ -166,32 +162,35 @@ def GP(name: str,
 
     data = torch.column_stack([prediction.mean for prediction in predictions])  # Extract the mean value from the prediction
     confidence = [torch.column_stack([prediction.confidence_region()[i] for prediction in predictions]) for i in range(2)]  # Extract the standardised upper and lower confidence limit tensors
-    dataExpanded = [unstandardiseTensor(tensor.float(), outputMean, outputStd) for tensor in [data, *confidence]]  # Unstandardise (expand) the data and confidence limits
+    dataExpanded = [denormaliseTensor(tensor.float(), outputMin, outputMax) for tensor in [data, *confidence]]  # Denormalise (expand) the data and confidence limits
     
-    return tuple(torch.mm(tensor, VTReduced) if name == "mgp" else tensor for tensor in dataExpanded) # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    # Expand the output to spatial data if running modal prediction, otherwise (lumped or spatial) return the data as-is
+    return tuple(torch.mm(tensor, VTReduced) if modelName[0] == "M" else tensor for tensor in dataExpanded)
 
 def predictTHP(xPred: torch.tensor,
-               name: str,
-               model: dict[str, Any],
-               outputMean: dict[str, torch.tensor],
-               outputStd: dict[str, torch.tensor],
+               modelName: str,
+               modelDict: dict[str, Any],
+               outputMin: dict[str, torch.tensor],
+               outputMax: dict[str, torch.tensor],
                stateDictDir: Path,
                VTReduced: dict[str, torch.tensor],
-               thpHistory: list[Optional[torch.tensor]] = [],
-               method: Optional[str] = None) -> list[Optional[torch.tensor]]:
+               maximise: Optional[bool] = False,
+               varProfile: Optional[bool] = False) -> list[Optional[torch.tensor]]:
     """
     Compute a Thermo-Hydraulic Performance (THP) prediction with the boundary
         conditions variables (BCV) of the specified model
 
     Parameters
     ----------
-    name : str                          Name of current model
-    model : dict                        Dictionary of current model attributes
     xPred : torch.tensor                Feature tensor used for prediction
-    outputMean : dict                   Mean of output tensor
-    outputStd : dict                    Stadard deviation of the output tensor
+    modelName : str                     Name of current model
+    modelDict : dict                    Dictionary of current model attributes
+    outputMin : dict                    Minimum of the output tensor
+    outputMax : dict                    Maximum of the output tensor
     stateDictDir : pathlib.Path         Trained data storage directory
     VTReduced : dict                    Dictionary of PCA left eigenvectors, one for each BCV
+    maximise : bool                     If True, this function is being called as part of differential evolution
+    varProfile : bool                   If True, returns flow variable profiles instead of lumped THP
 
     Returns
     -------
@@ -199,117 +198,85 @@ def predictTHP(xPred: torch.tensor,
     predictedTHPUpper : torch.tensor    Thermo-Hydraulic Performance evaluation upper confidence limit
     predictedTHPLower : torch.tensor    Thermo-Hydraulic Performance evaluation lower confidence limit
     """
-    if method:
-        xPred = torch.from_numpy(xPred).float().unsqueeze(0)
-    mlPrediction = [globals()[model["function"]](                               # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
-                        name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
-                        xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
+    if maximise:                                                                # If running as part of a maximisation process, passed xPred is a 1D numpy array
+        xPred = torch.from_numpy(xPred).float().unsqueeze(0)                    # Convert 1D numpy array to a 2D tensor, for compatibility with existing behaviour
+
+    mlPrediction = [globals()[modelName[1:]](                                   # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
+                        modelName=modelName, featureSize=xPred.shape[1], dimensionSize=modelDict["dimensionSize"],
+                        xPred=xPred, outputMin=outputMin[var], outputMax=outputMax[var],
                         varName=var, stateDictDir=stateDictDir, VTReduced=VTReduced.get(var))
-                    for var in model["variables"]]
+                    for var in modelDict["variables"]]
     mlPrediction = list(zip(*mlPrediction))                                     # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
     mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
     
-    if name != "lgp" and name != "lnn" and name != "lrbf":                      # If the current model isn't lumped ...
-        mlPrediction = [(None if data is None else lumpedDataCalculation(data)) for data in mlPrediction]  # Compute the Thermo-Hydraulic Performance (integral of advected heat flux and dissipation rate)
+    if modelName[0] != "L" and not varProfile:                                  # If the current model isn't lumped (prefix is not L), and we are not returning flow variables ...
+        mlPrediction = [(None if data is None else lumpedDataCalculation(data)) for data in mlPrediction]  # ... compute the Thermo-Hydraulic Performance (integral of advected heat flux and dissipation rate)
     
-    if method:
-        thpHistory.append(-(mlPrediction[0][0]-mlPrediction[0][1]).squeeze(0).squeeze(0))
-        return thpHistory[-1]
+    if maximise:                                                                # If running as part of a maximisation process, need to return a single value
+        return -(mlPrediction[0][0]-mlPrediction[0][1])[0, 0]                   # Compute and return lumped THP evaluation to maximisation process
+        
+    if varProfile:                                                              # If we are returning variable profile, we know we are already NOT lumped (no need to perform additional check)
+        return [(None if data is None else data) for data in mlPrediction]      # Return flow variable profiles
+        
     return [(None if data is None else data[0] - data[1]) for data in mlPrediction]  # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
 
-def predictVar(xPred: torch.tensor,
-               name: str,
-               model: dict[str, Any],
-               outputMean: dict[str, torch.tensor],
-               outputStd: dict[str, torch.tensor],
-               stateDictDir: Path,
-               VTReduced: dict[str, torch.tensor]) -> list[Optional[torch.tensor]]:
-    """
-    Compute a Thermo-Hydraulic Performance (THP) prediction with the boundary
-        conditions variables (BCV) of the specified model
-
-    Parameters
-    ----------
-    name : str                          Name of current model
-    model : dict                        Dictionary of current model attributes
-    xPred : torch.tensor                Feature tensor used for prediction
-    outputMean : dict                   Mean of output tensor
-    outputStd : dict                    Stadard deviation of the output tensor
-    stateDictDir : pathlib.Path         Trained data storage directory
-    VTReduced : dict                    Dictionary of PCA left eigenvectors, one for each BCV
-
-    Returns
-    -------
-    predictedTHPData : torch.tensor     Thermo-Hydraulic Performance evaluation
-    predictedTHPUpper : torch.tensor    Thermo-Hydraulic Performance evaluation upper confidence limit
-    predictedTHPLower : torch.tensor    Thermo-Hydraulic Performance evaluation lower confidence limit
-    """
-    mlPrediction = [globals()[model["function"]](                               # Call the model's corresponding BCV prediction function, passing it the collected arguments and constructing a list of BCV
-                        name=name, featureSize=xPred.shape[1], dimensionSize=model["dimensionSize"],
-                        xPred=xPred, outputMean=outputMean[var], outputStd=outputStd[var],
-                        varName=var, stateDictDir=stateDictDir, VTReduced=VTReduced.get(var))
-                    for var in model["variables"]]
-    mlPrediction = list(zip(*mlPrediction))                                     # Unwrap list [[data1, upper1, lower1], [data2, upper2, lower2], ...] -> [[data1, data2, ...], [upper1, upper2, ...], [lower1, lower2, ...]]
-    mlPrediction = [(None if data[0] is None else data) for data in mlPrediction]  # Convert any lists of None to a single None for ease of processing downstream
-    return [(None if data is None else data) for data in mlPrediction]          # Return the THP evaluation (subtracting dissipation rate from advected heat flux)
-
-def maximiseTHP(model: dict,
-                name: str,
+def maximiseTHP(modelName: str,
+                modelDict: dict,
                 stateDictDir: Path,
-                tensorDir: Path,
-                epochs: int = int(10)) -> tuple[str, str, str, str]:
+                tensorDir: Path) -> tuple[str, str, str, str, str]:
     """
     Find optimal features by minimising predicted THP
 
     Parameters
     ----------
-    model : dict                        Dictionary of current model attributes
-    name : str                          Name of current model
+    modelName : str                     Name of current model
+    modelDict : dict                    Dictionary of current model attributes
     tensorDir : pathlib.Path            Trained data storage directory
-    epochs : int                        Number of optimisation iterations
 
     Returns
     -------
-    name : str                          Name of model (used for post-training report, needs to be returned because of asynchronous training)
-    Re : str                            Reynolds number (used for post-training report)
-    harmonics : str                     Number of harmonics that were used for training
+    modelName : str                     Name of model (used for post-search report, needs to be returned because of asynchronous search)
+    archString : str                    Architecture string (used for post-search report)
+    Re : str                            Reynolds number (used for post-search report)
+    harmonics : str                     Number of harmonics that were used for search
     optimalFeatureVals : str            Summary string of optimal feature values
     """
     
     xData = torch.load(tensorDir / "xData.pt")                                  # Load the xData dictionary of tensors
-    xMean, xStd = xData["xMean"], xData["xStd"]                                 # Extract the mean and standard deviation of the unstandardised xData
-    outputMean = torch.load(tensorDir / f"{model['dimensionType']}Mean.pt")     # Load the tensor of output mean values for the current model's dimension type
-    outputStd = torch.load(tensorDir/ f"{model['dimensionType']}Std.pt")        # Load the tensor of output standard deviation values for the current model's dimension type
+    xMin, xMax = xData["xMin"], xData["xMax"]                                   # Extract the min and max values of the denormalised xData
+    outputMin = torch.load(tensorDir / f"{modelDict['dimensionType']}Min.pt")   # Load the tensor of output min values for the current model's dimension type
+    outputMax = torch.load(tensorDir / f"{modelDict['dimensionType']}Max.pt")   # Load the tensor of output max values for the current model's dimension type
     VTReduced = torch.load(tensorDir / "VTReduced.pt")                          # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
     
-    xPred = torch.ones(xMean.shape[0])                                          # Create an initial tensor with the same number of features as xMean and filled with zeros
-    bounds = tuple([(min(xData["x"][:,i]),max(xData["x"][:,i])) for i in range(xMean.shape[0])])
-    thpHistory = []
-                                                                               
-    xObjective = differential_evolution(predictTHP, bounds = bounds,            # line_search, least_squares, differential_evolution, nnls, basinhopping
-                                        args=(name, model, outputMean, outputStd, stateDictDir, VTReduced, thpHistory, "maximize"),
-                                        maxiter=int(1))
-    xPredExpanded = unstandardiseTensor(torch.from_numpy(xObjective["x"]).float(), xMean, xStd)  # Convert the list of 1D feature tensors to a 2D feature tensor history, and unstandardise (expand) it
+    thpHistory = []                                                             # Store intermediate results from THP minimisation
+    xObjective = differential_evolution(predictTHP,                             # Perform THP minimisation by differential evolution of predictTHP function
+                                        args=(modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, True),  # Arguments for predictTHP function
+                                        bounds = torch.stack((torch.zeros_like(xMin), torch.ones_like(xMax))).T,  # Bounds are the per-feature minima and maxima (0 and 1)
+                                        callback=lambda intermediate_result: thpHistory.append(intermediate_result.fun),  # Callback to append intermediate minimisation results to thpHistory list
+                                        polish=True)                            # Improve post-minimisation result
+    xPredMax = torch.from_numpy(xObjective["x"]).float()                        # Convert the 1D numpy array (optimised shape features) to a 2D tensor
+    xPredExpanded = denormaliseTensor(xPredMax, xMin, xMax)                     # ... and denormalise (expand) it
+
+    if modelName[0] != "L":                                                     # If the current model isn't lumped, we can also compute variable profiles
+        xPredBaseline = torch.zeros(xMin.shape[0])                              # Shape features of baseline case (all zeros)
+        if xPredBaseline.shape[0] in [3, 5]:                                    # If Re_All (number of features is 3 or 5), final entry is Re, which is NOT zero for baseline case
+            xPredBaseline[-1] = xPredMax[-1]                                    # Set Re baseline feature to optimised Re value
+        profileBaseline = predictTHP(xPredBaseline.unsqueeze(0), modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, varProfile=True)  # Compute baseline variable profiles
+        profileOptimised = predictTHP(xPredMax.unsqueeze(0), modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, varProfile=True)  # Compute optimised variable profiles
+    
     torch.save({'xPredExpanded': xPredExpanded,
-                'thpHistory': thpHistory},
-                Path(stateDictDir) / "optimalFeatureHistory.pt")                # Store the expanded optimal feature history
-    
-    if name != "lgp" and name != "lnn" and name != "lrbf":                      # If the current model isn't lumped ...
-        xPred = torch.zeros(xMean.shape[0])
-        if xPred.shape[0] == 3 or xPred.shape[0] == 5:
-            xPred[-1] = xPredExpanded[-1]
-        xPred0 = ((xPred - xMean) / xStd).float().unsqueeze(0)                  # Standardise tensor based on its mean and standard deviation (compute the Z-score)
-        predictedBaseline = predictVar(xPred0, name, model, outputMean, outputStd, stateDictDir, VTReduced)
-        predictedMax = predictVar(torch.from_numpy(xObjective["x"]).float().unsqueeze(0), name, model, outputMean, outputStd, stateDictDir, VTReduced)
-        varPlot(predictedMax, predictedBaseline, stateDictDir)
-    
+                'thpHistory': thpHistory,
+                'profileBaseline': None if modelName[0] == "L" else [profileBaseline[0][i].squeeze() for i in [2, 3, 4]],  # (ignore upper and lower limits, just store list of variable tensors)
+                'profileOptimised': None if modelName[0] == "L" else [profileOptimised[0][i].squeeze() for i in [2, 3, 4]]},  # (select only: outletU [2], outletT [3], inletp [4])
+                Path(stateDictDir) / "optimalSearchResults.pt")                 # Store optimal search results
+                
     _, Re, _, _, _, harmonics = tensorDir.stem.split("_")                       # Extract the Reynolds number and number of harmonics from the tensorDir name
     featureLabels = ["A1", "A2", "k1", "k2", "Re"][:(5 if Re == "All" else 4):(2 if harmonics == "1" else 1)]  # Match feautre positions with their corresponding labels
     labelledFeatureValues = [f"{label}={value.item():.4f}" for label, value in zip(featureLabels, xPredExpanded)]  # Construct of a list of strings where each entry is a labelled feature with its optimal value
-    with open(Path(stateDictDir) / "optimalFeatures.txt", "w") as file:               # Open a text file for writing (old content will be overwritten)
-        file.write("\n".join(labelledFeatureValues))                            # Join labelled feature using newlines and store in a human-readable format
+    archParts =  stateDictDir.name.split("_")[:-2]                              # List of architecture parts [name1, value1, name2, value2, ...]
+    archString = ", ".join([f"{archParts[i]}={archParts[i+1]}" for i in range(0, len(archParts), 2)])  # Compute architecture string as "name1=value1, name2=value2, ..."
         
-    return name, Re, harmonics, ", ".join(labelledFeatureValues)
+    return modelName, archString, Re, harmonics, ", ".join(labelledFeatureValues)
     
 ###############################################################################
 

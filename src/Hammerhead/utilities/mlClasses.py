@@ -21,7 +21,11 @@ import gpytorch                                                                 
 ###########################################################################################################################################
 
 class Network(torch.nn.Module):
-    def __init__(self, featureSize: int, dimensionSize: int, neurons: int, hiddenLayers: int) -> None:
+    def __init__(self,
+                 featureSize: int,
+                 dimensionSize: int,
+                 neurons: int,
+                 hiddenLayers: int) -> None:
         """
         Neural network class used by modal, spatial and lumped models
         
@@ -65,8 +69,7 @@ class Kriging(gpytorch.models.ExactGP):
                  xTrain: torch.tensor,
                  yTrain: torch.tensor,
                  likelihood: gpytorch.likelihoods.GaussianLikelihood,
-                 kernel: str,
-                 maternNu: float,
+                 kernel: gpytorch.kernels.Kernel,
                  featureSize: int,
                  dimensionSize: int) -> None:
         """
@@ -77,8 +80,7 @@ class Kriging(gpytorch.models.ExactGP):
         xTrain : torch.tensor               Features tensor
         yTrain : torch.tensor               Modes tensor
         likelihood : gpytorch.likelihoods   Log Marginal Likelihood for regression
-        kernel: str                         Kernel type of the covariance matrix
-        maternNu: float                     Smoother for the MaternKernel
+        kernel: gpytorch.kernels.Kernel     Kernel type of the covariance matrix
         featureSize : int                   Amount of features
         dimensionSize : int                 Output size
 
@@ -87,8 +89,9 @@ class Kriging(gpytorch.models.ExactGP):
         None
         """
         super().__init__(xTrain, yTrain, likelihood)
-        self.Mean = gpytorch.means.ConstantMean()                               # Function that computes the distribution mean for each step
-        self.Covar = gpytorch.kernels.ScaleKernel(getattr(gpytorch.kernels, kernel)(nu=maternNu, power=int(maternNu)))  # Function that computes the covariance matrix for each step
+        self.mean = gpytorch.means.ConstantMean()                               # Construct function that computes the distribution's mean for each step
+        self.covar = gpytorch.kernels.ScaleKernel(kernel(nu=0.5))               # Construct function that computes the distribution's covariance matrix for each step
+        # Note: nu=0.5 as the default value if MaternKernel is used
         
     def forward(self, x: torch.tensor) -> gpytorch.distributions.MultivariateNormal:
         """
@@ -104,7 +107,7 @@ class Kriging(gpytorch.models.ExactGP):
         --------
         out : MultivariateNormal            Multivariate distribution at current state
         """
-        return gpytorch.distributions.MultivariateNormal(self.Mean(x),self.Covar(x))
+        return gpytorch.distributions.MultivariateNormal(self.mean(x), self.covar(x))
     
 ###############################################################################
 
