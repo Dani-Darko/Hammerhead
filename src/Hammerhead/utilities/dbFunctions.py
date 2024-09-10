@@ -29,6 +29,7 @@ from pathlib import Path                                                        
 from queue import Empty                                                         # Others -> Inter-process communcation queue exceptions
 from time import sleep                                                          # Others -> Pause execution between subprocess status polls
 from tqdm import tqdm                                                           # Others -> Progress bar
+from typing import Any                                                          # Others -> Python type hinting
 
 import numpy as np                                                              # Others -> Array/matrix/vector manipulation
 import os                                                                       # Others -> Get subprocess PID
@@ -37,7 +38,7 @@ import subprocess                                                               
 
 ###########################################################################################################################################
 
-def dbPopulate(domain: str, nProc: int, openfoam: str) -> None:
+def dbPopulate(domain: str, nProc: int, openfoam: str, hfmParamsOverride: dict[str, Any]) -> None:
     """
     Using the specified high fidelty model parameters, compute and dispatch
         unique simulations cases to the multiprocessing database population
@@ -48,12 +49,13 @@ def dbPopulate(domain: str, nProc: int, openfoam: str) -> None:
     domain : str                        String specifing the domain type (either "2D" or "axisym")
     nProc : int                         Maximum number of concurrent database population processes
     openfoam : str                      Name (or path) of compatible OpenFOAM executable
+    hfmParamsOverride : dict[str, Any]  Dictionary of hfmParams that will supersede loaded values
 
     Returns
     -------
     None
     """
-    hfmParams = loadyaml("hfmParams")                                           # Load HFM parameters from ./resources/hfmParams.yaml; edit this file to change these parameters
+    hfmParams = loadyaml("hfmParams", override = hfmParamsOverride)             # Load HFM parameters from ./resources/hfmParams.yaml; edit this file to change these parameters
     hfmParams["domainType"] = domain                                            # Add specified --domain parameter to HFM parameter dictionary (so all parameters are contained in a single obj)
     
     try:                                                                        # Load ignoreCaseList if it exists (a FileNotFoundError exception is raised otherwise)
