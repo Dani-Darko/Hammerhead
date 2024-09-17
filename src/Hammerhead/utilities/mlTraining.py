@@ -109,7 +109,7 @@ def RBF(kernel: str,
     -------
     None
     """
-    rbfi = RBFInterpolator(xTrain, outputTrain, kernel=kernel, epsilon=3)       # Apply Radial Basis Function Interpolator (RBFI) from scipy onto the feature and output training tensors
+    rbfi = RBFInterpolator(xTrain, outputTrain, kernel=kernel, smoothing=3e-2, epsilon=3)       # Apply Radial Basis Function Interpolator (RBFI) from scipy onto the feature and output training tensors
     lossFunc = torch.nn.MSELoss()                                               # Loss function utilising mean square error (MSE)                                           
     lTrain = lossFunc(torch.from_numpy(rbfi(xTrain)), outputTrain)              # Compare prediction with training data through MSE
     
