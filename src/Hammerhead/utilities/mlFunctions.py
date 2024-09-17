@@ -180,8 +180,8 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
                         # Define mask of cases that will be placed at the END of our final tensor (will be prioritised for training): where cases are equivalent to the boundary values of the feature and output tensor
                         endMask = featAllMask | outputTensorAllMask             # Bool mask where each row in input and output tensor is all 0, 1 or min (per-column minimum not needed in output tensor as minimum = 0)
                         
-                        startIdx = torch.arange(dataSize)[~featAnyMask ^ featMidMask]  # Indices of cases placed at the START of tensor (least priority for training); non-boundary cases, excluding middle-range cases
-                        midIdx = torch.arange(dataSize)[featAnyMask ^ endMask]  # Indices of cases placed in the MIDDLE of the tensor (medium priority for training); partial boundary, excluding full boundary
+                        startIdx = torch.arange(dataSize)[~featAnyMask & ~(endMask | featMidMask)]  # Indices of cases placed at the START of tensor (least priority for training); non-boundary cases, excluding middle-range cases
+                        midIdx = torch.arange(dataSize)[featAnyMask & ~(endMask| featMidMask)]  # Indices of cases placed in the MIDDLE of the tensor (medium priority for training); partial boundary, excluding full boundary
                         endIdx = torch.arange(dataSize)[endMask | featMidMask]  # Indices of cases placed at the END of the tensor (maximum priority for training); full boundary, including middle-range cases
 
                         validSize = int(np.floor(validationSplit * dataSize))   # Compute the size of the validation data set, default is 35% of full data set for validation
