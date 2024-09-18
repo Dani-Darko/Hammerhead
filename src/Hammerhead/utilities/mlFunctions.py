@@ -407,14 +407,14 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
         for modelName in plotTasks:                                             # Iterate over all tasks specified in --plot
             for stateDictDirReAll in [path for path in (tensorDirReAll / modelName).glob("*") if path.is_dir()]:  # Also iterate over all architecture-relevant state dictionary subdirectories
                 try:
-                    dataMin = torch.load(tensorDirReAll / f"{models[modelName]['dimensionType']}Min.pt")  # Load the tensor of output min values for the current model's dimension type
-                    dataMax = torch.load(tensorDirReAll / f"{models[modelName]['dimensionType']}Max.pt")  # Load the tensor of output max values for the current model's dimension type
+                    dataMin = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Min.pt")  # Load the tensor of output min values for the current model's dimension type
+                    dataMax = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Max.pt")  # Load the tensor of output max values for the current model's dimension type
                     
                     for Re in uniqueRe:                                         # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
-                        xPred = normaliseTensor(xPredExpanded)                  # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                        predictedTHPQual = predictTHP(xPred, modelName, models[modelName], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
-                        predictedTHPQuant = predictTHP(x, modelName, models[modelName], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
+                        xPred, _, _ = normaliseTensor(xPredExpanded)            # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
+                        predictedTHPQual = predictTHP(xPred, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
+                        predictedTHPQuant = predictTHP(x, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
                         tasksMultiRe.append([predictedTHPQual, predictedTHPQuant, stateDictDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
 
                 except FileNotFoundError as e:
