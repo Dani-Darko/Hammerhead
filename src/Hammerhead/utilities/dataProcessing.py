@@ -157,7 +157,7 @@ def dbTensorUpdate(domain: str, nProc: int, trainingParamsOverride: dict[str, An
     
     tensorParentDir = Path(f"./mlData/{domain}")                                # Construct parent tensor directory of the form ./mlData/{domain}
     tensorDirStems = [f"Re_{Re}_modes_{trainingParams['modes']}" for Re in availableRe]  # Construct list of tensor subdirectory stems, one for each unique Re
-    caseDirLists = [[case for case in caseDatabasePaths if case.stem.startswith(f"Re_{Re}")] for Re in availableRe] # Construct list containing lists of case directories (each corresponding to one entry in tensorDirs), one for each unique Re
+    caseDirLists = [[case for case in caseDatabasePaths if case.stem.startswith(f"Re_{Re}_")] for Re in availableRe] # Construct list containing lists of case directories (each corresponding to one entry in tensorDirs), one for each unique Re
     featureSizes = [4 for _ in availableRe]                                     # Construct list of maximum number of features per available Re (these will be modified with a harmonic in the worker)
                     
     if len(availableRe) > 1:                                                    # If there is more than one Re in availableRe, we need to generate an Re_All case, add one more entry to each of the above lists
