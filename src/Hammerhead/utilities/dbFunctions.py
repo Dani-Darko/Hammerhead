@@ -105,13 +105,14 @@ def computeUniqueCases(hfmParams: dict[str, float]) -> tuple[np.ndarray, list[li
     caseList = [[w, x, y, z] for w in A1 for x in A2 for y in k1 for z in k2]   # Compute a list all of possible combinations of parameter values (cases)
     print(f"Generated {len(caseList)*len(Re)} cases representing all parameter combinations")
     
-    uniqueCases = [[computeYCoords(xArray, *caseList[0], hfmParams["r"]),       # Create a list of unique cases (initialised using the first case in caseList) that will contain [yArray, [params_1], [params_2], ...]
-                    caseList[0]]]                                               # ... where parameter combinations resulting in identical y-coordinate arrays are grouped (each entry will contain at least one set of parameters)
-    for case in tqdm(caseList[1:], initial=1, total=len(caseList), unit_scale=len(Re), desc="Grouping unique cases"):  # Iterate over all cases (except for the first), displaying a progress bar
+    uniqueCases = [[computeYCoords(xArray, 0, 0, 0, 0, hfmParams["r"]),         # Create a list of unique cases (initialised using baseline case) that will contain [yArray, [params_1], [params_2], ...]
+                    [0, 0, 0, 0]]]                                              # ... where parameter combinations resulting in identical y-coordinate arrays are grouped (each entry will contain at least one set of parameters)
+    for case in tqdm(caseList, unit_scale=len(Re), desc="Grouping unique cases"):  # Iterate over all cases, displaying a progress bar
         yArray = computeYCoords(xArray, *case, hfmParams["r"])                  # Compute an array of y-coordinates for current set of parameters
         for uniqueCase in uniqueCases:                                          # Iterate over all existing unique cases (where yArray is the first entry in the list)
             if np.array_equal(uniqueCase[0], yArray):                           # ... if the computed yArray is identical to that case's existing yArray 
-                uniqueCase.append(case)                                         # ... append this parameter set to that case's list of parameter sets (all parameter sets in this list generate the same yArray)
+                if not np.array_equal(uniqueCases[0][0], yArray):               # ... and if the current case is not a duplicate of a baseline case (of which there should only be one)
+                    uniqueCase.append(case)                                     # ... append this parameter set to that case's list of parameter sets (all parameter sets in this list generate the same yArray)
                 break                                                           # ... no need to search through the rest of the unique case groups once a match was found
         else:                                                                   # If no matching yArray is found, this is a new unique case
                 uniqueCases.append([yArray, case])                              # ... add a new sublist to the list of unique cases, containing the new unique yArray and the paramater set that created it
