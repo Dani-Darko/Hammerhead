@@ -413,8 +413,7 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
                     for Re in uniqueRe:                                         # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
                         xPredQual, _, _ = normaliseTensor(xPredExpanded)        # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
-                        ReIdx = xData["xExpanded"] == Re                        # Find all indices where the last column of x (Re) matches the current Re
-                        xPredQuant = x[ReIdx]                                   # ... and keep only the matching Re rows
+                        xPredQuant = x[xData["xExpanded"] == Re]                # Feature values for current Re to predict THP against corresponding HFM data
                         predictedTHPQual = predictTHP(xPredQual, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
                         predictedTHPQuant = predictTHP(xPredQuant, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
                         tasksMultiRe.append([predictedTHPQual, predictedTHPQuant, stateDictDirReAll, Re])  # Add the current model name, computed THP value, the current tensor directory, and the current Reynolds number to the list of mulit-Re task parameters
