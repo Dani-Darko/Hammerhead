@@ -194,8 +194,15 @@ def computeAllTensors(tensorParentDir: Path, tensorDirStem: str, caseDirList: li
     bcvTensorNames = ["spatialDataExpanded.pt", "spatialData.pt", "spatialMin.pt", "spatialMax.pt",  # List of all BCV- and PCA-related tensors that will be stored
                       "modalData.pt", "modalMin.pt", "modalMax.pt", "VTReduced.pt"]
     lumpedTensorNames = ["lumpedDataExpanded.pt", "lumpedData.pt", "lumpedMin.pt", "lumpedMax.pt"]  # List of all lumped tensors that will be stored
+    
+    def _inferFeatures(caseDir):
+        """
+        Private function for inferring feature values from caseDir path name
+        """
+        _, Re, _, A1, A2, _, k1, k2 = caseDir.name.split("_")
+        return np.array([float(feature.replace("-", ".")) for feature in [A1, A2, k1, k2, Re]], dtype=np.float32)
 
-    xExpanded = torch.from_numpy(np.array([np.loadtxt(caseDir / "Ak.txt", dtype=np.float32) for caseDir in caseDirList]))  # Extract feature data from Ak.txt file in each case directory and convert it to an unstandardised (expanded) feature tensor
+    xExpanded = torch.from_numpy(np.array([_inferFeatures(caseDir) for caseDir in caseDirList]))  # Infer feature values from path name for each case directory and convert it to an unstandardised (expanded) feature tensor
     xExpanded = xExpanded[:, :features]                                         # Only use the first n columns, where n is the number of features (if computing single-Re tensors, the last Re variable is not used)
     try:                                                                        # Attempt to load an existing xData tensor (this will fail if it doesn't exist)
         xExpandedExisting = torch.load(tensorParentDir / f"{tensorDirStem}_harmonics_2" / "xData.pt")["xExpanded"]  # Load the xData[xExpanded] harmonics=2 tensor (if it exists in the current tensorDir)

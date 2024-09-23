@@ -291,7 +291,6 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         messageQueue.put((pid, name, "Populating duplicates"))
         for singleCaseData in caseData:                                         # Iterate over all empty cases in caseData ...
             shutil.copytree(baseCasePath, singleCaseData[0], dirs_exist_ok=True)  # ... copying all contents from baseCasePath to the current empty case
-            createAkFile(*singleCaseData)                                       # Also create a machine-readable file with the current singleCaseData parameter set (used by ML functions)
         messageQueue.put((pid, name, "Done"))
         return                                                                  # No more needs to be done, all non-unique cases were populated using existing data
 
@@ -299,7 +298,6 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         messageQueue.put((pid, name, "Preparing case files")) 
         populateBlockMeshEdges(hfmParams["domainType"], caseData[0][0], xArray, yArray)  # Update surface coordinates to match the shape specified by current parameter set
         updateVelocity(caseData[0][0], hfmParams, Re)                           # Update velocity and turbulence variables for the current Reynolds number 
-        createAkFile(*caseData[0])                                              # Create a machine-readable file with the current case parameter set (used by ML functions)
         messageQueue.put((pid, name, "blockMesh/stitchMesh"))
         runMesh(caseData[0][0], openfoam)                                       # Run OpenFOAM blockMesh and stitchMesh, and rearrange mesh files for further OpenFOAM execution
         messageQueue.put((pid, name, "chtMultiRegionSimpleFoam"))
@@ -313,7 +311,6 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
             messageQueue.put((pid, name, "Populating duplicates"))
             for singleCaseData in caseData[1:]:                                 # ... iterate over all cases in caseData (except for the first)
                     shutil.copytree(caseData[0][0], singleCaseData[0], dirs_exist_ok=True)  # .. copy contents of simulation directory to the current empty case
-                    createAkFile(*singleCaseData)                               # ... also create a machine-readable file with the current singleCaseData parameter set (used by ML functions)
         else:                                                                   # In case of failure, move all logs to ./caseDatabase/failureLogs and delete all corresponding directories
             messageQueue.put((pid, name, "Failed, cleaning up"))
             failureLogsDir = Path(f'./caseDatabase/failureLogs/{hfmParams["domainType"]}/{caseData[0][0].stem}/')  # Construct path where simulation log files will be copied to
@@ -324,26 +321,6 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
             for singleCaseData in caseData:                                     # Now iterate over all case directories created at the beginning of this function ...
                 shutil.rmtree(singleCaseData[0])                                # ... delete each directory
         messageQueue.put((pid, name, "Done"))
-        
-def createAkFile(casePath: str, A1: float, A2: float, k1: float, k2: float, Re: float) -> None:
-    """
-    Create file in case directory containing requested parameter space data
-    
-    Parameters
-    ----------
-    casePath : str                      Path of simulation case directory
-    A1 : float                          Main amplitude value
-    A2 : float                          Secondary amplitude value
-    k1 : float                          Main wavenumber value
-    k2 : float                          Secondary wavenumber value
-    Re : float                          Reynolds number
-
-    Returns
-    -------
-    None
-    """
-    with open(casePath / "Ak.txt", "w") as fileAk:
-        fileAk.write(f"{A1} {A2} {k1} {k2} {Re}\n")
 
 ###############################################################################
 
