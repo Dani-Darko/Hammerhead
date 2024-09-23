@@ -281,16 +281,18 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         caseName = "Re_{}_A_{}_{}_k_{}_{}".format(Re, *[str(p).replace('.', '-') for p in [A1, A2, k1, k2]])  # Construct case directory name from parameter values (replacing dots with dashes)
         casePath = Path(f"./caseDatabase/{hfmParams['domainType']}/{caseName}")  # New case directory based on current parameter space; this is the cwd for each OpenFOAM HFM
         if (casePath / "postProcessing").exists():                              # If the directory already exists (and contains the postProcessing subdirectory), no simulations need to run
-            baseCasePath = casePath                                             # ... set this directory as the base case, which will be copied to all other cases in caseData
-        else:                                                                   # If the directory does not eixst or is invalid (does not contain ./postProcessing)
+            baseCasePath = casePath                                             # ... set this directory as the base case, to which all other duplicate cases will refer to
+        elif len(list(casePath.glob("*.redirect"))) == 1:                       # If the directory already exists and contains a redirect file, this case already points to another baseCasePath
+            continue                                                            # ... nothing else needs to be done, ignore this casePath
+        else:                                                                   # If the directory does not exist or is invalid (does not contain ./postProcessing)
             caseData.append([casePath, *caseParams])                            # ... append the case path and its parameters to caseData (list of cases that will need to be populated)
             shutil.rmtree(casePath, ignore_errors=True)                         # In the case that the directory is not empty, it will need to be cleared to prepare it for population
-            casePath.mkdir(parents=True)                                        # Create an empty directory for this case, which will be filled (either from baseCasePath or via OpenFOAM)
+            casePath.mkdir(parents=True)                                        # Create an empty directory for this case, which will be filled (either redirecting to baseCasePath or computed via OpenFOAM)
 
     if baseCasePath is not None:                                                # If a base case has been found, simulations will not need to run
         messageQueue.put((pid, name, "Populating duplicates"))
         for singleCaseData in caseData:                                         # Iterate over all empty cases in caseData ...
-            shutil.copytree(baseCasePath, singleCaseData[0], dirs_exist_ok=True)  # ... copying all contents from baseCasePath to the current empty case
+            open(singleCaseData[0]/f"{baseCasePath.name}.redirect", 'w').close()  # ... creating a redirect file that points to the baseCasePath
         messageQueue.put((pid, name, "Done"))
         return                                                                  # No more needs to be done, all non-unique cases were populated using existing data
 
@@ -307,10 +309,10 @@ def dbComputeHFMProcess(uniqueCase: list[list[float]], hfmParams: dict[str, floa
         success = False                                                         # Set success to False as OpenFOAM execution was interrupted
         raise                                                                   # Do not do anything else, the "finally" clause will carry out the clean-up and the exception is reported to the user
     finally:                                                                    # Perform final population operations here regardless of success or failure
-        if success:                                                             # In case of success, populate all other cases using data computed by OpenFOAM for the first case
+        if success:                                                             # In case of success, point all duplicate cases to base case containing data computed by OpenFOAM
             messageQueue.put((pid, name, "Populating duplicates"))
             for singleCaseData in caseData[1:]:                                 # ... iterate over all cases in caseData (except for the first)
-                    shutil.copytree(caseData[0][0], singleCaseData[0], dirs_exist_ok=True)  # .. copy contents of simulation directory to the current empty case
+                    open(singleCaseData[0]/f"{caseData[0][0].name}.redirect", 'w').close()  # ... creating a redirect file that points to the baseCasePath
         else:                                                                   # In case of failure, move all logs to ./caseDatabase/failureLogs and delete all corresponding directories
             messageQueue.put((pid, name, "Failed, cleaning up"))
             failureLogsDir = Path(f'./caseDatabase/failureLogs/{hfmParams["domainType"]}/{caseData[0][0].stem}/')  # Construct path where simulation log files will be copied to

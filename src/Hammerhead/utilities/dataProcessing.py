@@ -258,6 +258,10 @@ def computeBCVandSVD(bcvNames: list[str], caseDirList: list[Path], modes: int, p
     samplingFormats = loadyaml("samplingFormats")                               # Load data from ./resouces/samplingFormats.yaml containing BCV data location information for each supported OpenFOAM version
     bcv = {name: [] for name in bcvNames}                                       # Create dictionary of lists, where each key will initially contain an empty list that will be filled with loaded BCV datasets for stacking
     for caseDir in caseDirList:                                                 # Iterate over all relevant case directories, loading all available BCV data
+    
+        redirect = list(caseDir.glob("*.redirect"))                             # Find all files with extension ".redirect" in caseDir; if no matches, caseDir is original and remains the same
+        if redirect:                                                            # If True (list contains an entry), this caseDir is a duplicate, and we should point to the original caseDir
+                caseDir = caseDir.with_name(redirect[0].stem)                   # File name (without extension) of the redirect is the folder name of the original caseDir, replace it and set that as the current caseDir
 
         openfoamVersion = None                                                  # As each case could have been generated with a different OpenFOAM version, we need to identify the correct one to use (start with None)
         for version in samplingFormats.keys():                                  # Each key in samplingFormats is a supported OpenFOAM version number, iterate over all supported versions ...
