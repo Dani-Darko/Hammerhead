@@ -20,7 +20,7 @@ from layouts import layoutMain                                                  
 
 # IMPORTS: PyQt5 ##########################################################################################################################
 
-from PyQt5.QtCore import QPoint, Qt                                             # PyQt5 -> Core Qt objects
+from PyQt5.QtCore import QPoint, Qt, QTimer                                     # PyQt5 -> Core Qt objects
 from PyQt5.QtGui import QIcon, QMouseEvent, QPixmap, QPolygon                   # PyQt5 -> Qt GUI interaction and drawing objects
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow                   # PyQt5 -> Qt Widget objects
 
@@ -44,10 +44,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
         self.buttonProperties = {"buttonHFM"  : {"object" : self.labelButtonHFM},
                                  "buttonSM"   : {"object" : self.labelButtonSM},
-                                 "buttonPred" : {"object" : self.labelButtonPred},
-                                 "buttonGraph": {"object" : self.labelButtonGraph},
-                                 "buttonOptim": {"object" : self.labelButtonOptim},
-                                 "buttonSetup": {"object" : self.labelButtonSetup},
+                                 "buttonPP"   : {"object" : self.labelButtonPP},
                                  "buttonStart": {"object" : self.labelButtonStart}}
         
         # Process all button objects, setting default states, applying pixmaps and computing bounding boxes
@@ -58,6 +55,27 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
             for state in ["default", "hovered", "pressed"]:                     # Iterate over all available button states
                 button["pixmap"][state] = QPixmap(f"./assets/images/{label}{state.title()}.png")  # Load pixmap from assets directory (example: ./assets/img/buttonGraphDefault.png)
             button["object"].setPixmap(button["pixmap"][button["state"]])       # Set pixmap representing the current (default) button state
+            
+        # Setup sprite-related objects (sprite QPixmaps, animation timer, state counter)
+        self.sprites = {state: QPixmap(f"./assets/images/HammerheadMascotSprite{state}.png") for state in range(2)}  # Load all relevant sprite images as QPixmaps
+        self.spriteState = 0                                                    # Keeps track of current sprite state
+        self.spriteTimer = QTimer(interval=1000)                                # Sprite animation timer, fires every 1 second
+        self.spriteTimer.timeout.connect(self.updateSprite)                     # Timer fire triggers sprite update function
+        self.updateSprite()                                                     # Call initial sprite update function (setting the label pixmap for the first time)
+        
+        ## Setup dialog-related objects (dialog box, dialog content label, incremental text update timer)
+        self.labelDialogBox.setPixmap(QPixmap(f"./assets/images/HammerheadDialogBig.png"))  # Update dialog box with pixmap
+        self.dialogText = (                                                     # Initial dialog text (welcome message with instructions)
+            "Welcome to Hammerhead - a tool for CFD and ML-based optimisation "
+            "of heat transfer in pipe flows. Hover over the buttons below for "
+            "more information.")
+        self.dialogTextIndex = 0                                                # Set initial incremental text index to zero (initially, no message is shown)
+        self.dialogIncrementTimer = QTimer(interval=20)                         # Timer which triggers incremental update of text every 20ms
+        self.dialogIncrementTimer.timeout.connect(self.incrementalUpdateDialogText)  # With every timer trigger, one more character is added to the dialog
+        
+        # Start all timers and show UI
+        self.spriteTimer.start()                                                # Sprite animation timer (always active)
+        self.dialogIncrementTimer.start()                                       # Incremental dialog text update timer (disabled when message is fully shown in dialog box)
         
     @staticmethod   
     def getHexBoundingBox(obj: QLabel) -> QPolygon:
@@ -172,6 +190,40 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
                 else:                                                           # ... if the release event happened away from the button, treat this as a mis-click (no action is performed)
                     self.updateButtonState(button, "default")                   # ... return button default state as it is no longer being hovered-over
                 return                                                          # ... no need to examine other buttons as only one button can be clicked at a time
+                
+    def updateSprite(self) -> None:
+        """
+        Updates animated sprite, periodically called by timer
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        self.labelAnimationMascot.setPixmap(self.sprites[self.spriteState])     # Set animation label pixmap corresponding to current sprite state
+        self.spriteState = (self.spriteState + 1) % len(self.sprites)           # Increment sprite state (up to a maximum defined by the number of available sprite states, then restarts from zero)
+        
+    def incrementalUpdateDialogText(self) -> None:
+        """
+        Incrementally updates dialog text for a game-like text animation.
+            Triggered by external timer which is stopped once entire message
+            is visible in the dialog box.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        self.labelDialogContent.setText(f"<font color=#6b6b6b>{self.dialogText[:self.dialogTextIndex]}</font>")  # Update label with partial text (coloured using HTML)
+        self.dialogTextIndex += 1                                               # Increment text index, such that next update draws one more character
+        if self.dialogTextIndex > len(self.dialogText):                         # Once the target text index is greater than the total length of the text ...
+            self.dialogIncrementTimer.stop()                                    # ... stop the timer, all text has been drawn
 
 
 def launch_gui(args: Namespace) -> None:

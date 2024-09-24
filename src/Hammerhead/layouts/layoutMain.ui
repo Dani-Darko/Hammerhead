@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>800</height>
+    <width>500</width>
+    <height>700</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -41,69 +41,74 @@
      <rect>
       <x>20</x>
       <y>20</y>
-      <width>560</width>
+      <width>460</width>
       <height>420</height>
      </rect>
     </property>
     <property name="title">
      <string/>
     </property>
+    <widget class="QLabel" name="labelAnimationMascot">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>200</y>
+       <width>200</width>
+       <height>200</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelDialogBox">
+     <property name="geometry">
+      <rect>
+       <x>40</x>
+       <y>23</y>
+       <width>400</width>
+       <height>157</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelDialogContent">
+     <property name="geometry">
+      <rect>
+       <x>60</x>
+       <y>43</y>
+       <width>360</width>
+       <height>117</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Consolas</family>
+       <pointsize>10</pointsize>
+       <weight>75</weight>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
-   <widget class="QLabel" name="labelButtonSM">
+   <widget class="QLabel" name="labelButtonPP">
     <property name="geometry">
      <rect>
-      <x>74</x>
-      <y>550</y>
+      <x>80</x>
+      <y>562</y>
       <width>100</width>
       <height>115</height>
-     </rect>
-    </property>
-    <property name="mouseTracking">
-     <bool>true</bool>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QLabel" name="labelButtonPred">
-    <property name="geometry">
-     <rect>
-      <x>47</x>
-      <y>675</y>
-      <width>50</width>
-      <height>58</height>
-     </rect>
-    </property>
-    <property name="mouseTracking">
-     <bool>true</bool>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QLabel" name="labelButtonGraph">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>722</y>
-      <width>50</width>
-      <height>58</height>
-     </rect>
-    </property>
-    <property name="mouseTracking">
-     <bool>true</bool>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QLabel" name="labelButtonOptim">
-    <property name="geometry">
-     <rect>
-      <x>74</x>
-      <y>722</y>
-      <width>50</width>
-      <height>58</height>
      </rect>
     </property>
     <property name="mouseTracking">
@@ -116,8 +121,8 @@
    <widget class="QLabel" name="labelButtonStart">
     <property name="geometry">
      <rect>
-      <x>530</x>
-      <y>722</y>
+      <x>430</x>
+      <y>622</y>
       <width>50</width>
       <height>58</height>
      </rect>
@@ -129,13 +134,13 @@
      <string/>
     </property>
    </widget>
-   <widget class="QLabel" name="labelButtonSetup">
+   <widget class="QLabel" name="labelButtonSM">
     <property name="geometry">
      <rect>
-      <x>476</x>
-      <y>722</y>
-      <width>50</width>
-      <height>58</height>
+      <x>140</x>
+      <y>460</y>
+      <width>100</width>
+      <height>115</height>
      </rect>
     </property>
     <property name="mouseTracking">
