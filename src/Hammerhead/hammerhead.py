@@ -48,7 +48,7 @@ def setup_argparse() -> ArgumentParser:
     """  
     parser: argparse.ArgumentParser = ArgumentParser(description="HAMMERHEAD - Harmonic MOO Model Expedient for the Reduction Hydraulic-loss/Heat-transfer Enhancement Asset Design")   
     parser.add_argument('-c', '--console',     action="store_true",        required=False, default=False,                                            help="Launch Hammerhead in console-only mode")
-    parser.add_argument('-d', '--domain',      action="store", type=str,   required=True,                         choices=['axisym', '2D'],          help="Type of HFM data domain")
+    parser.add_argument('-d', '--domain',      action="store", type=str,   required=False, default=None,          choices=['axisym', '2D'],          help="Type of HFM data domain")
     parser.add_argument(      '--noHFM',       action="store_true",        required=False, default=False,                                            help="Disable HFM database population process")
     parser.add_argument(      '--noTensor',    action="store_true",        required=False, default=False,                                            help="Disable the tensor update process from HFM database")
     parser.add_argument('-n', '--nProc',       action="store", type=int,   required=False, default=multiprocessing.cpu_count(),                      help="Number of concurrent processes")
@@ -98,6 +98,9 @@ def parse_args(parser: ArgumentParser) -> Namespace:
     args : argparse.Namespace       namespace object of parsed args
     """
     args: Namespace = parser.parse_args()                                       # Construct namespace object full of arguments passed by user (or provided by default values)
+    
+    if args.console and args.domain is None:                                    # Ensure that if running in console mode, the --domain is specified (in GUI mode, enforced by GUI layout)
+        raise RuntimeError(f"--domain must be specified (one of: [2D, axisym])")
         
     if args.nProc < 1:                                                          # Check that the number of requested concurrent processes is a positive integer
         raise RuntimeError(f"--nProc must be greater than 1, got {args.nProc}")
@@ -115,7 +118,7 @@ def parse_args(parser: ArgumentParser) -> Namespace:
                 args.openfoam: str = ""                                         # If we got this far, we are in an existing OpenFOAM environment, and therefore the executable/prefix is unnecessary
             except KeyError:                                                    # Rise a runtime exception, cannot continue without OpenFOAM if database population is requested
                 raise RuntimeError(f"{args.openfoam} not found in current environment."
-                                    "  1) if you do not wish to run any simulations, do not specify --domain"
+                                    "  1) if you do not wish to run any simulations, specify --noHFM"
                                     "  2) if you do wish run simulations, openFOAM versions 2212 or 2106 must be available on this system"
                                     "  3) if a supported version of openFOAM exists on this system but not in this environment, specify its path via --openfoam")
     
