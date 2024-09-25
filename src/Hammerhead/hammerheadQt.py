@@ -18,6 +18,8 @@
 
 from layouts import layoutMain                                                  # Layouts -> Main GUI window
 
+from modals import modalHFMSettings                                             # Modals -> HFM Settings
+
 # IMPORTS: PyQt5 ##########################################################################################################################
 
 from PyQt5.QtCore import QPoint, Qt, QTimer                                     # PyQt5 -> Core Qt objects
@@ -40,12 +42,23 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         super(HammerHeadMain, self).__init__(parent)
         self.setupUi(self)
         self.setFixedSize(self.size())                                          # Disable resizing or maximizing window
+        
+        # Instantiate all modal/dialog objects
+        self.dialogHFMSettings = modalHFMSettings.HFMSettings(self)
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
-        self.buttonProperties = {"buttonHFM"  : {"object" : self.labelButtonHFM},
-                                 "buttonSM"   : {"object" : self.labelButtonSM},
-                                 "buttonPP"   : {"object" : self.labelButtonPP},
-                                 "buttonStart": {"object" : self.labelButtonStart}}
+        self.buttonProperties = {"buttonHFM"  : {"object"     : self.labelButtonHFM,
+                                                 "action"     : self.dialogHFMSettings.show,
+                                                 "dialogText" : "Default text for HFM button"},
+                                 "buttonSM"   : {"object"     : self.labelButtonSM,
+                                                 "action"     : type(None),
+                                                 "dialogText" : "Default text for SM button"},
+                                 "buttonPP"   : {"object"     : self.labelButtonPP,
+                                                 "action"     : type(None),
+                                                 "dialogText" : "Default text for PP button"},
+                                 "buttonStart": {"object"     : self.labelButtonStart,
+                                                 "action"     : type(None),
+                                                 "dialogText" : "Default text for start button"}}
         
         # Process all button objects, setting default states, applying pixmaps and computing bounding boxes
         for label, button in self.buttonProperties.items():
@@ -62,20 +75,14 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.spriteTimer = QTimer(interval=1000)                                # Sprite animation timer, fires every 1 second
         self.spriteTimer.timeout.connect(self.updateSprite)                     # Timer fire triggers sprite update function
         self.updateSprite()                                                     # Call initial sprite update function (setting the label pixmap for the first time)
+        self.spriteTimer.start()                                                # Start sprite animation timer (always active)
         
         ## Setup dialog-related objects (dialog box, dialog content label, incremental text update timer)
-        self.labelDialogBox.setPixmap(QPixmap(f"./assets/images/HammerheadDialogBig.png"))  # Update dialog box with pixmap
-        self.dialogText = (                                                     # Initial dialog text (welcome message with instructions)
-            "Welcome to Hammerhead - a tool for CFD and ML-based optimisation "
-            "of heat transfer in pipe flows. Hover over the buttons below for "
-            "more information.")
-        self.dialogTextIndex = 0                                                # Set initial incremental text index to zero (initially, no message is shown)
+        self.labelDialogBox.setPixmap(QPixmap(f"./assets/images/HammerheadDialog.png"))  # Update dialog box with pixmap
+        self.dialogText = ""                                                    # Will contain the target dialog message when updated
         self.dialogIncrementTimer = QTimer(interval=20)                         # Timer which triggers incremental update of text every 20ms
         self.dialogIncrementTimer.timeout.connect(self.incrementalUpdateDialogText)  # With every timer trigger, one more character is added to the dialog
-        
-        # Start all timers and show UI
-        self.spriteTimer.start()                                                # Sprite animation timer (always active)
-        self.dialogIncrementTimer.start()                                       # Incremental dialog text update timer (disabled when message is fully shown in dialog box)
+        self.setDialogTargetText()                                              # Set dialog target text and begin drawing (as no buttons are hovered-over, this will show the default welcome message)
         
     @staticmethod   
     def getHexBoundingBox(obj: QLabel) -> QPolygon:
@@ -141,6 +148,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
                 self.updateButtonState(button, "hovered")                       # ... update button state to hovered (this will be ignored by updateButtonState if button is already in this state)
             else:                                                               # Otherwise, if mouse is not over the current button's bounding box
                 self.updateButtonState(button, "default")                       # ... set it's state to default (this will be ignored by updateButtonState if button is already in this state)
+        self.setDialogTargetText()                                              # Update dialog text (will do nothing if text is already set, otherwise will set the target text and start the incremental draw timer)
                     
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """
@@ -185,7 +193,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         for button in self.buttonProperties.values():                           # Iterate over all buttons
             if button["state"] == "pressed":                                    # If a button is currently in pressed state, it is eligible to be "released" into hovered or default state
                 if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):  # ... if the release event happened within the bounding box of the pressed button
-                    print("EVENT TRIGGERED")                                    # ... trigger the relevant event
+                    button["action"]()                                          # ... trigger the relevant event
                     self.updateButtonState(button, "hovered")                   # ... return the button to hovered state as mouse is still over the button
                 else:                                                           # ... if the release event happened away from the button, treat this as a mis-click (no action is performed)
                     self.updateButtonState(button, "default")                   # ... return button default state as it is no longer being hovered-over
@@ -205,6 +213,31 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         """
         self.labelAnimationMascot.setPixmap(self.sprites[self.spriteState])     # Set animation label pixmap corresponding to current sprite state
         self.spriteState = (self.spriteState + 1) % len(self.sprites)           # Increment sprite state (up to a maximum defined by the number of available sprite states, then restarts from zero)
+        
+    def setDialogTargetText(self) -> None:
+        """
+        Sets target dialog text depending on the button that is being hovered
+            over (or a default text if otherwise). If the target text is not
+            already set (repeat action that is ignored), sets the target text,
+            resets the incremental counter, and starts the incremental text
+            update timer.
+        """
+        for button in self.buttonProperties.values():                           # Iterate over all buttons
+            if button["state"] == "hovered":                                    # ... if a button is currently in hovered state
+                targetText = button["dialogText"]                               # ... set its corresponding text as the target dialog text
+                break                                                           # ... no need to examine other buttons as only one button can be hovered-over at a time
+        else:                                                                   # If we are here, no button is hovered-over
+            targetText = (                                                      # ... set dialog text as the default/initial welcome message
+                "Welcome to Hammerhead - a tool for CFD and ML-based optimisation "
+                "of heat transfer in pipe flows. Hover over the buttons below for "
+                "more information.")
+        
+        if self.dialogText == targetText:                                       # If the target text has already been set (repeated mouseMove events)
+            return                                                              # ... do nothing, as all variables have already been set
+            
+        self.dialogText = targetText                                            # Set the target text
+        self.dialogTextIndex = 0                                                # Reset the incremental dialog text drawing counter
+        self.dialogIncrementTimer.start()                                       # Start the incremental dialog text update timer
         
     def incrementalUpdateDialogText(self) -> None:
         """
