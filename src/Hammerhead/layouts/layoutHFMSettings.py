@@ -508,19 +508,15 @@ class Ui_HFMSettingsDialog(object):
         self.verticalLayoutMainRight.addWidget(self.groupBoxHFMParameters)
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayoutMainRight.addItem(spacerItem)
-        self.horizontalLayoutSaveAndReturn = QtWidgets.QHBoxLayout()
-        self.horizontalLayoutSaveAndReturn.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-        self.horizontalLayoutSaveAndReturn.setObjectName("horizontalLayoutSaveAndReturn")
         self.pushButtonSaveAndReturn = QtWidgets.QPushButton(HFMSettingsDialog)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.pushButtonSaveAndReturn.sizePolicy().hasHeightForWidth())
         self.pushButtonSaveAndReturn.setSizePolicy(sizePolicy)
         self.pushButtonSaveAndReturn.setMinimumSize(QtCore.QSize(133, 33))
         self.pushButtonSaveAndReturn.setObjectName("pushButtonSaveAndReturn")
-        self.horizontalLayoutSaveAndReturn.addWidget(self.pushButtonSaveAndReturn)
-        self.verticalLayoutMainRight.addLayout(self.horizontalLayoutSaveAndReturn)
+        self.verticalLayoutMainRight.addWidget(self.pushButtonSaveAndReturn)
         self.horizontalLayoutMain.addLayout(self.verticalLayoutMainRight)
 
         self.retranslateUi(HFMSettingsDialog)
@@ -528,7 +524,7 @@ class Ui_HFMSettingsDialog(object):
 
     def retranslateUi(self, HFMSettingsDialog):
         _translate = QtCore.QCoreApplication.translate
-        HFMSettingsDialog.setWindowTitle(_translate("HFMSettingsDialog", "HFM settings"))
+        HFMSettingsDialog.setWindowTitle(_translate("HFMSettingsDialog", "High-Fidelty Model settings"))
         self.groupBoxGeometryVisualisation.setTitle(_translate("HFMSettingsDialog", "Surface geometry visualisation"))
         self.groupBoxVisualisationParameters.setTitle(_translate("HFMSettingsDialog", "Geometry visualisation parameters"))
         self.labelVisualisationA1.setText(_translate("HFMSettingsDialog", "<html><head/><body><p>A<span style=\" vertical-align:sub;\">1</span> = {}</p></body></html>"))

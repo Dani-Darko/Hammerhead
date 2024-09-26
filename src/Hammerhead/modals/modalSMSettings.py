@@ -7,14 +7,14 @@
 #                                                                                            #
 ##############################################################################################
 #                                                                                            #
-#       HFM Settings modal window                                                            #
+#       SM Settings modal window                                                             #
 #                                                                                            #
 ##############################################################################################
 
 
 # IMPORTS: HAMMERHEAD files ###############################################################################################################
 
-from layouts import layoutHFMSettings                                           # Layouts -> HFM Settings
+from layouts import layoutSMSettings                                            # Layouts -> SM Settings
 
 # IMPORTS: PyQt5 ##########################################################################################################################
 
@@ -28,8 +28,8 @@ from typing import Any                                                          
 ###########################################################################################################################################
 
 
-class HFMSettings(QDialog, layoutHFMSettings.Ui_HFMSettingsDialog):
+class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
 
     def __init__(self, parent):
-        super(HFMSettings, self).__init__(parent)
+        super(SMSettings, self).__init__(parent)
         self.setupUi(self)

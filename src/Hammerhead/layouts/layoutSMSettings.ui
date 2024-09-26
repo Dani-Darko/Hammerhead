@@ -1,0 +1,1298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SMSettingsDialog</class>
+ <widget class="QDialog" name="SMSettingsDialog">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>721</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Consolas</family>
+    <pointsize>10</pointsize>
+    <weight>75</weight>
+    <bold>true</bold>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>Surrogate Model settings</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayoutMain">
+   <item>
+    <widget class="QGroupBox" name="groupBoxSummary">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Database and surrogate model summary</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayoutSummary">
+      <item>
+       <widget class="QPlainTextEdit" name="plainTextEditSummary">
+        <property name="font">
+         <font>
+          <family>Consolas</family>
+          <pointsize>10</pointsize>
+          <weight>50</weight>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="verticalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="undoRedoEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayoutMainRight">
+     <item>
+      <widget class="QGroupBox" name="groupBoxParameters">
+       <property name="title">
+        <string>Run surrogate model training</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayoutParameters">
+        <property name="spacing">
+         <number>20</number>
+        </property>
+        <item>
+         <widget class="QGroupBox" name="groupBoxTrainingParameters">
+          <property name="title">
+           <string>Training parameters</string>
+          </property>
+          <property name="flat">
+           <bool>true</bool>
+          </property>
+          <layout class="QGridLayout" name="gridLayoutTrainingParameters">
+           <item row="0" column="1">
+            <widget class="QSpinBox" name="spinBoxModes">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="value">
+              <number>5</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="Line" name="lineTrainingParameters">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="spinBoxSamples">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="value">
+              <number>3</number>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QPushButton" name="pushButtonValSplitClearList">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Clear list</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="labelModes">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Modes</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QPushButton" name="pushButtonValSplitAddToList">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Add to list</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="labelSamples">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Samples</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QDoubleSpinBox" name="doubleSpinBoxValSplit">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="minimum">
+              <double>0.010000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>0.990000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.350000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="labelValSplit">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Validation split</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0" colspan="2">
+            <widget class="QListWidget" name="listWidgetValSplit">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>42</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="verticalScrollBarPolicy">
+              <enum>Qt::ScrollBarAlwaysOff</enum>
+             </property>
+             <property name="horizontalScrollBarPolicy">
+              <enum>Qt::ScrollBarAlwaysOn</enum>
+             </property>
+             <property name="selectionMode">
+              <enum>QAbstractItemView::ExtendedSelection</enum>
+             </property>
+             <property name="flow">
+              <enum>QListView::LeftToRight</enum>
+             </property>
+             <property name="spacing">
+              <number>1</number>
+             </property>
+             <property name="viewMode">
+              <enum>QListView::ListMode</enum>
+             </property>
+             <item>
+              <property name="text">
+               <string>0.35</string>
+              </property>
+              <property name="background">
+               <brush brushstyle="SolidPattern">
+                <color alpha="50">
+                 <red>107</red>
+                 <green>107</green>
+                 <blue>107</blue>
+                </color>
+               </brush>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBoxArchitectureParameters">
+          <property name="title">
+           <string>Architecture parameters</string>
+          </property>
+          <property name="flat">
+           <bool>true</bool>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayoutArchitectureParameters">
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QTabWidget" name="tabWidgetArchitectureParameters">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="tabPosition">
+              <enum>QTabWidget::West</enum>
+             </property>
+             <property name="currentIndex">
+              <number>2</number>
+             </property>
+             <property name="documentMode">
+              <bool>true</bool>
+             </property>
+             <widget class="QWidget" name="tabRBF">
+              <attribute name="title">
+               <string>RBF</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="verticalLayoutRBF">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayoutRBFDims">
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxLRBF">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>L-RBF</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxMRBF">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>M-RBF</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxSRBF">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>S-RBF</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="Line" name="lineRBF">
+                 <property name="font">
+                  <font>
+                   <family>Consolas</family>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="gridLayoutRBFKernel">
+                 <item row="4" column="1" colspan="2">
+                  <widget class="QListWidget" name="listWidgetRBFKernel">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="verticalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOn</enum>
+                   </property>
+                   <property name="horizontalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOff</enum>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::ExtendedSelection</enum>
+                   </property>
+                   <property name="spacing">
+                    <number>1</number>
+                   </property>
+                   <property name="viewMode">
+                    <enum>QListView::ListMode</enum>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>inverse_multiquadric</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="3" column="2">
+                  <widget class="QPushButton" name="pushButtonRBFKernelClearList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Clear list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="3" column="1">
+                  <widget class="QPushButton" name="pushButtonRBFKernelAddToList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Add to list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QLabel" name="labelRBFKernel">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Kernel</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="2">
+                  <widget class="QComboBox" name="comboBoxRBFKernel">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="currentIndex">
+                    <number>5</number>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>linear</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>thin_plate_spline</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>cubic</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>quintic</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>multiquadric</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>inverse_multiquadric</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>inverse_quadratic</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>gaussian</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <spacer name="verticalSpacerRBF">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>20</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tabNN">
+              <attribute name="title">
+               <string>NN</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="verticalLayout_5">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayoutNNDims">
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxLNN">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>L-NN</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxMNN">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>M-NN</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxSNN">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>S-NN</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="Line" name="lineNN_1">
+                 <property name="font">
+                  <font>
+                   <family>Consolas</family>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="gridLayoutNNLayers">
+                 <item row="0" column="1">
+                  <widget class="QSpinBox" name="spinBoxNNLayers">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
+                   <property name="value">
+                    <number>4</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QPushButton" name="pushButtonNNLayersAddToList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Add to list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="labelNNLayers">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Layers</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QPushButton" name="pushButtonNNLayersClearList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Clear list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="2" column="0" colspan="2">
+                  <widget class="QListWidget" name="listWidgetNNLayers">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>42</height>
+                    </size>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="verticalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOff</enum>
+                   </property>
+                   <property name="horizontalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOn</enum>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::ExtendedSelection</enum>
+                   </property>
+                   <property name="flow">
+                    <enum>QListView::LeftToRight</enum>
+                   </property>
+                   <property name="spacing">
+                    <number>1</number>
+                   </property>
+                   <property name="viewMode">
+                    <enum>QListView::ListMode</enum>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>1</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>2</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>3</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>4</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="Line" name="lineNN_2">
+                 <property name="font">
+                  <font>
+                   <family>Consolas</family>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="gridLayoutNNNeurons">
+                 <item row="1" column="0">
+                  <widget class="QPushButton" name="pushButtonNNNeuronsAddToList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Add to list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="labelNNNeurons">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Neurons</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QSpinBox" name="spinBoxNNNeurons">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
+                   <property name="maximum">
+                    <number>9999</number>
+                   </property>
+                   <property name="value">
+                    <number>64</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="2" column="0" colspan="2">
+                  <widget class="QListWidget" name="listWidgetNNNeurons">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>42</height>
+                    </size>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="verticalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOff</enum>
+                   </property>
+                   <property name="horizontalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOn</enum>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::ExtendedSelection</enum>
+                   </property>
+                   <property name="flow">
+                    <enum>QListView::LeftToRight</enum>
+                   </property>
+                   <property name="spacing">
+                    <number>1</number>
+                   </property>
+                   <property name="viewMode">
+                    <enum>QListView::ListMode</enum>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>8</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>16</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>32</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>64</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QPushButton" name="pushButtonNNNeuronsClearList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Clear list</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <spacer name="verticalSpacerNN">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>20</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+             <widget class="QWidget" name="tabGP">
+              <attribute name="title">
+               <string>GP</string>
+              </attribute>
+              <layout class="QVBoxLayout" name="verticalLayout_7">
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayoutGPDims">
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxLGP">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>L-GP</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxMGP">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>M-GP</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="checkBoxSGP">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>S-GP</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="Line" name="lineGP">
+                 <property name="font">
+                  <font>
+                   <family>Consolas</family>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <layout class="QGridLayout" name="gridLayoutGPKernel">
+                 <item row="4" column="1" colspan="2">
+                  <widget class="QListWidget" name="listWidgetGPKernel">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="verticalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOn</enum>
+                   </property>
+                   <property name="horizontalScrollBarPolicy">
+                    <enum>Qt::ScrollBarAlwaysOff</enum>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::ExtendedSelection</enum>
+                   </property>
+                   <property name="spacing">
+                    <number>1</number>
+                   </property>
+                   <property name="viewMode">
+                    <enum>QListView::ListMode</enum>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>MaternKernel</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="3" column="2">
+                  <widget class="QPushButton" name="pushButtonGPKernelClearList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Clear list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="3" column="1">
+                  <widget class="QPushButton" name="pushButtonGPKernelAddToList">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Add to list</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QLabel" name="labelGPKernel">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                   <property name="text">
+                    <string>Kernel</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="2">
+                  <widget class="QComboBox" name="comboBoxGPKernel">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>10</pointsize>
+                     <weight>50</weight>
+                     <bold>false</bold>
+                    </font>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <spacer name="verticalSpacerGP">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>20</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBoxDataProcessing">
+          <property name="title">
+           <string>Data processing</string>
+          </property>
+          <property name="flat">
+           <bool>true</bool>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayoutDataProcessing">
+           <item>
+            <widget class="QCheckBox" name="checkBoxTensorUpdate">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Update tensors from HFM case database</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="checkBoxOptimalSearch">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>10</pointsize>
+               <weight>50</weight>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Run optimal search (after training)</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButtonSaveAndReturn">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>133</width>
+         <height>33</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Save and return</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

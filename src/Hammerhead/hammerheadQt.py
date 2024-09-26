@@ -19,6 +19,7 @@
 from layouts import layoutMain                                                  # Layouts -> Main GUI window
 
 from modals import modalHFMSettings                                             # Modals -> HFM Settings
+from modals import modalSMSettings                                              # Modals -> SM Settings
 
 # IMPORTS: PyQt5 ##########################################################################################################################
 
@@ -44,14 +45,15 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.setFixedSize(self.size())                                          # Disable resizing or maximizing window
         
         # Instantiate all modal/dialog objects
-        self.dialogHFMSettings = modalHFMSettings.HFMSettings(self)
+        self.dialogHFMSettings = modalHFMSettings.HFMSettings(self)             # HFM settings
+        self.dialogSMSettings = modalSMSettings.SMSettings(self)                # SM settings
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
         self.buttonProperties = {"buttonHFM"  : {"object"     : self.labelButtonHFM,
                                                  "action"     : self.dialogHFMSettings.show,
                                                  "dialogText" : "Default text for HFM button"},
                                  "buttonSM"   : {"object"     : self.labelButtonSM,
-                                                 "action"     : type(None),
+                                                 "action"     : self.dialogSMSettings.show,
                                                  "dialogText" : "Default text for SM button"},
                                  "buttonPP"   : {"object"     : self.labelButtonPP,
                                                  "action"     : type(None),

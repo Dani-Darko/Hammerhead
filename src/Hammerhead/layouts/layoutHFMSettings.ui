@@ -22,7 +22,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>HFM settings</string>
+   <string>High-Fidelty Model settings</string>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayoutMain">
    <item>
@@ -874,30 +874,23 @@
       </spacer>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayoutSaveAndReturn">
-       <property name="sizeConstraint">
-        <enum>QLayout::SetFixedSize</enum>
+      <widget class="QPushButton" name="pushButtonSaveAndReturn">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
-       <item>
-        <widget class="QPushButton" name="pushButtonSaveAndReturn">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>133</width>
-           <height>33</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Save and return</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
+       <property name="minimumSize">
+        <size>
+         <width>133</width>
+         <height>33</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Save and return</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
