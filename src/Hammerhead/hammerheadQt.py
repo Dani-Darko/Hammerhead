@@ -82,6 +82,9 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.dialogText = ""                                                    # Will contain the target dialog message when updated
         self.dialogIncrementTimer = QTimer(interval=20)                         # Timer which triggers incremental update of text every 20ms
         self.dialogIncrementTimer.timeout.connect(self.incrementalUpdateDialogText)  # With every timer trigger, one more character is added to the dialog
+        self.dialogUnderscoreEnabled = False                                    # Flag for whether underscore is shown after dialog text
+        self.dialogUnderscoreFlashTimer = QTimer(interval=500)                  # After dialog text is fully drawn, underscore will flash every 500ms
+        self.dialogUnderscoreFlashTimer.timeout.connect(self.toggleDialogUnderscore)  # Toggle the underscore visibility with every underscore timer timeout
         self.setDialogTargetText()                                              # Set dialog target text and begin drawing (as no buttons are hovered-over, this will show the default welcome message)
         
     @staticmethod   
@@ -237,6 +240,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
             
         self.dialogText = targetText                                            # Set the target text
         self.dialogTextIndex = 0                                                # Reset the incremental dialog text drawing counter
+        self.dialogUnderscoreFlashTimer.stop()                                  # Stop flashing underscore, as new text is about to be written
         self.dialogIncrementTimer.start()                                       # Start the incremental dialog text update timer
         
     def incrementalUpdateDialogText(self) -> None:
@@ -253,10 +257,28 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         -------
         None
         """
-        self.labelDialogContent.setText(f"<font color=#6b6b6b>{self.dialogText[:self.dialogTextIndex]}</font>")  # Update label with partial text (coloured using HTML)
+        self.labelDialogContent.setText(f"<font color=#6b6b6b>{self.dialogText[:self.dialogTextIndex]}_</font>")  # Update label with partial text (coloured using HTML)
         self.dialogTextIndex += 1                                               # Increment text index, such that next update draws one more character
         if self.dialogTextIndex > len(self.dialogText):                         # Once the target text index is greater than the total length of the text ...
             self.dialogIncrementTimer.stop()                                    # ... stop the timer, all text has been drawn
+            self.dialogUnderscoreFlashTimer.start()                             # ... start flashing the underscore
+            self.dialogUnderscoreEnabled = False                                # ... as underscore is drawn after message by default, set to False state so it disappears in the next update
+            
+    def toggleDialogUnderscore(self) -> None:
+        """
+        Toggles the visibility state of an underscore at the end of the dialog
+            message once dialog text is fully drawn
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        self.labelDialogContent.setText(f"<font color=#6b6b6b>{self.dialogText}{'_' if self.dialogUnderscoreEnabled else ''}</font>")  # Write final dialog message with or without an underscore
+        self.dialogUnderscoreEnabled = not self.dialogUnderscoreEnabled         # Invert the visibility state of the underscore for the next update
 
 
 def launch_gui(args: Namespace) -> None:
