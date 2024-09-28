@@ -44,23 +44,38 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.setupUi(self)
         self.setFixedSize(self.size())                                          # Disable resizing or maximizing window
         
+        self.nProc = args.nProc                                                 # Number of tasks to be used for parallelisable processes
+        self.openfoam = args.openfoam                                           # Name or path of openFOAM executable
+        
+        if args.noHFM:                                                          # If noHFM specified in args ...
+            self.labelButtonHFM.setEnabled(False)                               # ... disable the HFM settings "button"
+        
+        # INFER DOMAIN !!
+        
         # Instantiate all modal/dialog objects
-        self.dialogHFMSettings = modalHFMSettings.HFMSettings(self)             # HFM settings
-        self.dialogSMSettings = modalSMSettings.SMSettings(self)                # SM settings
+        self.dialogHFMSettings = modalHFMSettings.HFMSettings(args.hfmParams, self)  # HFM settings dialog
+        self.dialogSMSettings = modalSMSettings.SMSettings(self)                # SM settings    -> !!! noTensor, --search, --train, args.trainingParams
+                                                                                # -> !!! --plot 
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
         self.buttonProperties = {"buttonHFM"  : {"object"     : self.labelButtonHFM,
                                                  "action"     : self.dialogHFMSettings.show,
-                                                 "dialogText" : "Default text for HFM button"},
+                                                 "dialogText" : ("Default text for HFM button"
+                                                                 if not args.noHFM else
+                                                                 "Default text for disabled HFM button"),
+                                                 "enabled"    : not args.noHFM},
                                  "buttonSM"   : {"object"     : self.labelButtonSM,
                                                  "action"     : self.dialogSMSettings.show,
-                                                 "dialogText" : "Default text for SM button"},
+                                                 "dialogText" : "Default text for SM button",
+                                                 "enabled"    : True},
                                  "buttonPP"   : {"object"     : self.labelButtonPP,
                                                  "action"     : type(None),
-                                                 "dialogText" : "Default text for PP button"},
+                                                 "dialogText" : "Default text for PP button",
+                                                 "enabled"    : True},
                                  "buttonStart": {"object"     : self.labelButtonStart,
                                                  "action"     : type(None),
-                                                 "dialogText" : "Default text for start button"}}
+                                                 "dialogText" : "Default text for start button",
+                                                 "enabled"    : True}}
         
         # Process all button objects, setting default states, applying pixmaps and computing bounding boxes
         for label, button in self.buttonProperties.items():
@@ -149,7 +164,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         for button in self.buttonProperties.values():                           # Iterate over all buttons
             if button["state"] == "pressed":                                    # If the button is pressed, ignore it (here we deal with default or hover states only)
                 return                                                          # No need to iterate over any other buttons, if one is pressed no other buttons can be interacted with
-            if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):  # If mouse is hovered over the current button's bounding region
+            if button["enabled"] and button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):  # If current button is enabled and mouse is hovered over the it's bounding region
                 self.updateButtonState(button, "hovered")                       # ... update button state to hovered (this will be ignored by updateButtonState if button is already in this state)
             else:                                                               # Otherwise, if mouse is not over the current button's bounding box
                 self.updateButtonState(button, "default")                       # ... set it's state to default (this will be ignored by updateButtonState if button is already in this state)

@@ -51,7 +51,7 @@ def setup_argparse() -> ArgumentParser:
     parser.add_argument('-d', '--domain',      action="store", type=str,   required=False, default=None,          choices=['axisym', '2D'],          help="Type of HFM data domain")
     parser.add_argument(      '--noHFM',       action="store_true",        required=False, default=False,                                            help="Disable HFM database population process")
     parser.add_argument(      '--noTensor',    action="store_true",        required=False, default=False,                                            help="Disable the tensor update process from HFM database")
-    parser.add_argument('-n', '--nProc',       action="store", type=int,   required=False, default=multiprocessing.cpu_count(),                      help="Number of concurrent processes")
+    parser.add_argument('-n', '--nProc',       action="store", type=int,   required=False, default=int(multiprocessing.cpu_count()/2),               help="Number of concurrent processes")
     parser.add_argument('-o', '--openfoam',    action="store", type=str,   required=False, default="openfoam2212",                                   help="OpenFOAM executable name or path")
     parser.add_argument('-p', '--plot',        action="store", type=str,   required=False, default=[], nargs="*", choices=availableModels + ["all"], help="Plot ML surface vs HF sparse data")
     parser.add_argument('-s', '--search',      action="store", type=str,   required=False, default=[], nargs="*", choices=availableModels + ["all"], help="Line search for optimal shape parameters")
