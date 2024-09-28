@@ -44,13 +44,12 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.setupUi(self)
         self.setFixedSize(self.size())                                          # Disable resizing or maximizing window
         
+        self.domain = "2D" if args.domain is None else args.domain              # Infer domain from args, or set as the default "2D" if not specified
         self.nProc = args.nProc                                                 # Number of tasks to be used for parallelisable processes
         self.openfoam = args.openfoam                                           # Name or path of openFOAM executable
         
         if args.noHFM:                                                          # If noHFM specified in args ...
             self.labelButtonHFM.setEnabled(False)                               # ... disable the HFM settings "button"
-        
-        # INFER DOMAIN !!
         
         # Instantiate all modal/dialog objects
         self.dialogHFMSettings = modalHFMSettings.HFMSettings(args.hfmParams, self)  # HFM settings dialog
@@ -58,24 +57,28 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
                                                                                 # -> !!! --plot 
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
-        self.buttonProperties = {"buttonHFM"  : {"object"     : self.labelButtonHFM,
-                                                 "action"     : self.dialogHFMSettings.show,
-                                                 "dialogText" : ("Default text for HFM button"
-                                                                 if not args.noHFM else
-                                                                 "Default text for disabled HFM button"),
-                                                 "enabled"    : not args.noHFM},
-                                 "buttonSM"   : {"object"     : self.labelButtonSM,
-                                                 "action"     : self.dialogSMSettings.show,
-                                                 "dialogText" : "Default text for SM button",
-                                                 "enabled"    : True},
-                                 "buttonPP"   : {"object"     : self.labelButtonPP,
-                                                 "action"     : type(None),
-                                                 "dialogText" : "Default text for PP button",
-                                                 "enabled"    : True},
-                                 "buttonStart": {"object"     : self.labelButtonStart,
-                                                 "action"     : type(None),
-                                                 "dialogText" : "Default text for start button",
-                                                 "enabled"    : True}}
+        self.buttonProperties = {"buttonHFM":    {"object"     : self.labelButtonHFM,
+                                                  "action"     : self.dialogHFMSettings.show,
+                                                  "dialogText" : ("Default text for HFM button"
+                                                                  if not args.noHFM else
+                                                                  "Default text for disabled HFM button"),
+                                                  "enabled"    : not args.noHFM},
+                                 "buttonSM":     {"object"     : self.labelButtonSM,
+                                                  "action"     : self.dialogSMSettings.show,
+                                                  "dialogText" : "Default text for SM button",
+                                                  "enabled"    : True},
+                                 "buttonPP":     {"object"     : self.labelButtonPP,
+                                                  "action"     : type(None),
+                                                  "dialogText" : "Default text for PP button",
+                                                  "enabled"    : True},
+                                 "buttonDomain": {"object"     : self.labelButtonDomain,
+                                                  "action"     : self.swapDomainPixmap,
+                                                  "dialogText" : "Default text for domain button",
+                                                  "enabled"    : True},
+                                 "buttonStart":  {"object"     : self.labelButtonStart,
+                                                  "action"     : type(None),
+                                                  "dialogText" : "Default text for start button",
+                                                  "enabled"    : True}}
         
         # Process all button objects, setting default states, applying pixmaps and computing bounding boxes
         for label, button in self.buttonProperties.items():
@@ -86,6 +89,13 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
                 button["pixmap"][state] = QPixmap(f"./assets/images/{label}{state.title()}.png")  # Load pixmap from assets directory (example: ./assets/img/buttonGraphDefault.png)
             button["object"].setPixmap(button["pixmap"][button["state"]])       # Set pixmap representing the current (default) button state
             
+        # For the domain button, additional states are available, load those alternate pixmaps that can be swapped into
+        domainButton = self.buttonProperties["buttonDomain"]                    # Temporary shorthand for domain button
+        for state in ["default", "hovered", "pressed"]:                         # Iterate over all available button states and load alternative pixmaps
+            domainButton["pixmap"][state+"Alt"] = QPixmap(f"./assets/images/buttonDomain{state.title()}Alt.png")  # ... alternative pixmaps end with the "Alt" string
+            if self.domain == "axisym":                                         # If the current domain is axisym, swap into the alternative pixmaps now
+                domainButton["pixmap"][state], domainButton["pixmap"][state+"Alt"] = domainButton["pixmap"][state+"Alt"], domainButton["pixmap"][state]
+                        
         # Setup sprite-related objects (sprite QPixmaps, animation timer, state counter)
         self.sprites = {state: QPixmap(f"./assets/images/HammerheadMascotSprite{state}.png") for state in range(2)}  # Load all relevant sprite images as QPixmaps
         self.spriteState = 0                                                    # Keeps track of current sprite state
@@ -218,6 +228,24 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
                 else:                                                           # ... if the release event happened away from the button, treat this as a mis-click (no action is performed)
                     self.updateButtonState(button, "default")                   # ... return button default state as it is no longer being hovered-over
                 return                                                          # ... no need to examine other buttons as only one button can be clicked at a time
+                
+    def swapDomainPixmap(self) -> None:
+        """
+        Swap domains and domain button pixmaps. Triggered by pressing the
+            domain button.
+        
+        Parameters
+        ----------
+        None
+        
+        Returns
+        -------
+        None
+        """
+        self.domain = "axisym" if self.domain == "2D" else "2D"                 # Swap domains
+        button = self.buttonProperties["buttonDomain"]                          # Temporary shorthand for domain button
+        for state in ["default", "hovered", "pressed"]:                         # Iterate over all available button states, swapping in alternative pixmaps
+            button["pixmap"][state], button["pixmap"][state+"Alt"] = button["pixmap"][state+"Alt"], button["pixmap"][state]
                 
     def updateSprite(self) -> None:
         """

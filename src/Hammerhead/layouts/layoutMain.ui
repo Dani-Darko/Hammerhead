@@ -150,6 +150,22 @@
      <string/>
     </property>
    </widget>
+   <widget class="QLabel" name="labelButtonDomain">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>622</y>
+      <width>50</width>
+      <height>58</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
   </widget>
  </widget>
  <resources/>

@@ -120,6 +120,8 @@ class HFMSettings(QDialog, layoutHFMSettings.Ui_HFMSettingsDialog):
             # The change of any slider should trigger the update of the corresponding label text, as well as the geometry plot
             slider.valueChanged.connect(lambda index, param=param: self.updateSliderLabel(param, index))
             slider.valueChanged.connect(lambda index: self.updatePlot())
+            
+        self.pushButtonSaveAndReturn.pressed.connect(self.hide)                 # Pressing "save and return" button hides the dialog window
                 
     def showEvent(self, event: QShowEvent) -> None:
         """
