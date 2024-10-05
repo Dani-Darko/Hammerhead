@@ -58,8 +58,8 @@ def predictionPlot(xv: np.ndarray,
     
     lumpedPred = predictedTHPQuant[0]                                           # Also extract THP data from list of predicted quantitative data (for 2D plot)
     lumpedLimits2D = None if predictedTHPQuant[1] is None else predictedTHPQuant[1:]  # Also extract limits from list of predicted quantitative data
-    xExpanded = torch.load(tensorDir / "xData.pt")["xExpanded"]                 # Load xExpanded data from xData.pt dictionary of tensors
-    lumpedDataExpanded = torch.load(tensorDir / "lumpedDataExpanded.pt")        # Load the unstandardised lumped data dictionary of tensors
+    xExpanded = torch.load(tensorDir / "xData.pt", weights_only=True)["xExpanded"]  # Load xExpanded data from xData.pt dictionary of tensors
+    lumpedDataExpanded = torch.load(tensorDir / "lumpedDataExpanded.pt", weights_only=True)  # Load the unstandardised lumped data dictionary of tensors
     harmonics = int(tensorDir.stem.split("_")[-1])                              # Deduce whether harmonics is 1 or 2 from the tensorDir name
     A2, k2 = plotParams["A2"], plotParams["k2"]                                 # Create shorthands for A2 and k2 parameter values from plotParams.yaml
     
@@ -172,7 +172,7 @@ def varPlot(plotParams: dict[str, Union[float, bool]],
     pivotIdx, plotDir = _getPlotDir(profileDictFileSM.parent)                   # Create and get path to plot directory
     _mplPreamble(plotParams)                                                    # Execute matplotlib formatting preamble code
     
-    dataHFM, dataSM = torch.load(profileDictFileHFM), torch.load(profileDictFileSM)  # Load data from HFM and SM tensors    
+    dataHFM, dataSM = torch.load(profileDictFileHFM, weights_only=True), torch.load(profileDictFileSM, weights_only=True)  # Load data from HFM and SM tensors    
     fig, axs = plt.subplots(figsize=(5.4, 6), ncols=2, nrows=3, sharex="col", sharey="row")  # Create figure and 3x2 subplots
     for row, var in enumerate(["$p\ \mathrm{[kPa]}$", "$v_x\ \mathrm{[ms^{-1}]}$", "$T\ \mathrm{[K]}$"]):  # Iterate over all rows, and their corresponding y-axis labels
         axs[row, 0].set_ylabel(var)                                             # For each row, set y-axis label in the leftmost column
@@ -210,7 +210,7 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
     
     model = plotDir.parts[pivotIdx+3]                                           # Get model name from stateDictDir path
     vars = ["lumpedp", "lumpedT"] if model[0] == "L" else ["inletp", "outletp", "inletT", "outletT", "inletU", "outletU"]  # Establish model variables based on model prefix ("L" = lumped)
-    plotData = [[torch.load(stateDictDir / f"{var}.pt")[entry]                  # Load loss data (either training or validation) for the current variable
+    plotData = [[torch.load(stateDictDir / f"{var}.pt", weights_only=False)[entry]  # Load loss data (either training or validation) for the current variable
                  for entry in (["lossTrain"] if model[1:] == "GP" else ["lossTrain", "lossValid"])]  # Iterate over all types of loss, based on model suffix
                 for var in vars]                                                # Iterate over all model variables, loading all loss data in stateDictDir
     
@@ -248,7 +248,8 @@ def historyPlot(plotParams: dict[str, Union[float, bool]],
         
     fig, ax = plt.subplots(figsize=(5.4, 2))                                    # Create new figure with single subplot
     try:
-        ax.plot(torch.load(stateDictDir / "optimalSearchResults.pt")["thpHistory"], c="m", label="$\dot{Q}$ history", linewidth=1, markersize=2)  # Load and plot training set loss
+        thpHistory = torch.load(stateDictDir / "optimalSearchResults.pt", weights_only=False)["thpHistory"]  # Load THP history from stored tensor
+        ax.plot(thpHistory, c="m", label="$\dot{Q}$ history", linewidth=1, markersize=2)  # Plot training set loss
         ax.set_xlabel("$\mathrm{Epoch}$", fontsize=10)                          # Set the x-axis label as epoch
         ax.set_ylabel("$\dot{Q}$", fontsize=10)                                 # Set the y-axis label as loss
         ax.tick_params(axis='both', labelsize=6)                                # Modify the tick label size

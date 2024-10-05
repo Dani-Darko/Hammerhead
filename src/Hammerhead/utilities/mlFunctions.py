@@ -161,8 +161,8 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
 
     for tensorDir in sorted(tensorDirs):                                        # Iterate over all tensor directories matching requirements loaded from trainingParams.yaml
         print(f"Loading tensors for Re={tensorDir.stem.split('_')[1]} and modes={trainingParams['modes']} from {tensorDir} for ML/RBF training")
-        tensors = {tensor: torch.load(tensorDir / f"{tensor}Data.pt") for tensor in ["modal", "spatial", "lumped"]}  # Load the necessary tensors and store them in a dictionary by name
-        tensors["x"] = torch.load(tensorDir / "xData.pt")["x"]                  # Additionally, load the standardised x tensor from xData.pt
+        tensors = {tensor: torch.load(tensorDir / f"{tensor}Data.pt", weights_only=True) for tensor in ["modal", "spatial", "lumped"]}  # Load the necessary tensors and store them in a dictionary by name
+        tensors["x"] = torch.load(tensorDir / "xData.pt", weights_only=True)["x"]  # Additionally, load the standardised x tensor from xData.pt
         dataSize, featureSize = tensors["x"].shape                              # Shape of the full data set, where shape[0] is the number of processed cases and shape[1] is the number of features
         featAllMask, featAnyMask, featMidMask = _computeTensorMasks()
 
@@ -358,8 +358,8 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
             tensorDirsReAll.append(tensorDir)                                   # ... add it to a list that will be passed to the corresponding multi-Re function
             continue                                                            # ... and move on to the next tensor directory
             
-        VTReduced = torch.load(tensorDir / "VTReduced.pt")                      # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
-        xData = torch.load(tensorDir / "xData.pt")                              # Load the xData dictionary of tensors
+        VTReduced = torch.load(tensorDir / "VTReduced.pt", weights_only=True)   # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
+        xData = torch.load(tensorDir / "xData.pt", weights_only=True)           # Load the xData dictionary of tensors
         x, xMin, xMax = xData["x"], xData["xMin"], xData["xMax"]                # Extract the min and max values of the denormalised xData, as well as the normalised xData
         xPredExpanded = torch.from_numpy(xPredExpandedArray1H if int(tensorDir.stem.split("_")[-1]) == 1 else xPredExpandedArray2H)  # Deduce the number of harmonics from the current tensorDir name, and convert the corresponding array to a tensor
         xPred, _, _ = normaliseTensor(xPredExpanded)                            # The models are trained with normalised data, so the features need to be normalised with the stored min and max values
@@ -367,8 +367,8 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
         for modelName in plotTasks:                                             # Iterate over all tasks specified in --plot
             for stateDictDir in [path for path in (tensorDir / modelName).glob("*") if path.is_dir()]:  # Also iterate over all architecture-relevant state dictionary subdirectories
                 try:
-                    dataMin = torch.load(tensorDir / f"{modelPrefix[ modelName[0] ]['dimensionType']}Min.pt")  # Load the tensor of output maximum values for the current model's dimension type
-                    dataMax = torch.load(tensorDir / f"{modelPrefix[ modelName[0] ]['dimensionType']}Max.pt")  # Load the tensor of output minimum values for the current model's dimension type
+                    dataMin = torch.load(tensorDir / f"{modelPrefix[ modelName[0] ]['dimensionType']}Min.pt", weights_only=True)  # Load the tensor of output maximum values for the current model's dimension type
+                    dataMax = torch.load(tensorDir / f"{modelPrefix[ modelName[0] ]['dimensionType']}Max.pt", weights_only=True)  # Load the tensor of output minimum values for the current model's dimension type
                     predictedTHPQual = predictTHP(xPred, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDir, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
                     predictedTHPQuant = predictTHP(x, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDir, VTReduced)  # Also carry out prediction for the 2D quantitative plots
                     tasksSingleRe.append([predictedTHPQual, predictedTHPQuant, stateDictDir])  # Add the current model name, computed THP value, and the current tensor directory to the list of single-Re task parameters
@@ -398,17 +398,17 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
     """
     tasksMultiRe = []                                                           # List of tasks, where each entry will be a partial list of parameters to be passed to lumpedPlot
     for tensorDirReAll in tqdm(tensorDirsReAll, desc="Predicting for multi-Re scenarios"):  # Iterate over all Re_All tensor directories previously identified by the corresponding single-Re function
-        uniqueRe = torch.unique(torch.load(tensorDirReAll / "xData.pt")["xExpanded"][:, -1]).int()  # Get an integer tensor of unique Re values from the last column of the xExpanded tensor (where Re is a feature)
-        VTReduced = torch.load(tensorDirReAll / "VTReduced.pt")                 # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
-        xData = torch.load(tensorDirReAll / "xData.pt")                         # Load the xData dictionary of tensors
+        uniqueRe = torch.unique(torch.load(tensorDirReAll / "xData.pt", weights_only=True)["xExpanded"][:, -1]).int()  # Get an integer tensor of unique Re values from the last column of the xExpanded tensor (where Re is a feature)
+        VTReduced = torch.load(tensorDirReAll / "VTReduced.pt", weights_only=True)  # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
+        xData = torch.load(tensorDirReAll / "xData.pt", weights_only=True)      # Load the xData dictionary of tensors
         x, xMin, xMax = xData["x"], xData["xMin"], xData["xMax"]                # Extract the minimum and maximum values of the denormalised xData, as well as the normalised xData
         xPredExpandedArray = xPredExpandedArray1H if int(tensorDirReAll.stem.split("_")[-1]) == 1 else xPredExpandedArray2H  # Deduce the number of harmonics from the current tensorDir name, and set it as the chosen xPredExpanded array
         
         for modelName in plotTasks:                                             # Iterate over all tasks specified in --plot
             for stateDictDirReAll in [path for path in (tensorDirReAll / modelName).glob("*") if path.is_dir()]:  # Also iterate over all architecture-relevant state dictionary subdirectories
                 try:
-                    dataMin = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Min.pt")  # Load the tensor of output min values for the current model's dimension type
-                    dataMax = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Max.pt")  # Load the tensor of output max values for the current model's dimension type
+                    dataMin = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Min.pt", weights_only=True)  # Load the tensor of output min values for the current model's dimension type
+                    dataMax = torch.load(tensorDirReAll / f"{modelPrefix[ modelName[0] ]['dimensionType']}Max.pt", weights_only=True)  # Load the tensor of output max values for the current model's dimension type
                     
                     for Re in uniqueRe:                                         # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor

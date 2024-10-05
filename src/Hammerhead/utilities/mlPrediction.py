@@ -60,7 +60,7 @@ def NN(modelName: str,
     outputUpperTensor : None            Upper confidence limit not computed by this model 
     outputLowerTensor : None            Lower confidence limit not computed by this model
     """
-    checkpoint = torch.load(stateDictDir / f"{varName}.pt")                     # Load the checkpoint of the model
+    checkpoint = torch.load(stateDictDir / f"{varName}.pt", weights_only=True)  # Load the checkpoint of the model
     _, _, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")            # Infer number of layers and neurons from state dict path
     
     network = Network(featureSize, dimensionSize, int(neurons), int(layers))    # Create instance of neural network class
@@ -101,7 +101,7 @@ def RBF(modelName: str,
     outputUpperTensor : None            Upper confidence limit not computed by this model
     outputLowerTensor : None            Lower confidence limit not computed by this model
     """
-    rbfi = torch.load(stateDictDir / f"{varName}.pt")['modelState']             # Load the stored trained RBFI object (interally uses pickle)
+    rbfi = torch.load(stateDictDir / f"{varName}.pt", weights_only=False)['modelState']  # Load the stored trained RBFI object
     
     data = torch.from_numpy(rbfi(xPred.detach())).float()                       # Produce the prediction
     dataExpanded = denormaliseTensor(data, outputMin, outputMax)                # Denormalise (expand) the data
@@ -141,7 +141,7 @@ def GP(modelName: str,
     outputUpperTensor : torch.tensor    Prediction output upper confidence limit tensor
     outputLowerTensor : torch.tensor    Prediction output lower confidence limit tensor
     """
-    trainingData = torch.load(stateDictDir / f"{varName}.pt")                   # Load the dictionary of model parameters and training data
+    trainingData = torch.load(stateDictDir / f"{varName}.pt", weights_only=False)  # Load the dictionary of model parameters and training data
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with from the file
     kernel = getattr(gpytorch.kernels, (stateDictDir.name.split("_"))[3])       # Infer the kernel the model was trained with from the directory name
     
@@ -152,7 +152,7 @@ def GP(modelName: str,
     model = gpytorch.models.IndependentModelList(*modelPrev)                    # Create a Gaussian Process model from modelPrev (list of sub-models)
     likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood)          # Create likelihood object from list of previously created list of likelihoods 
     
-    model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt")["modelState"])  # Load the model state from the trained data tensors
+    model.load_state_dict(torch.load(stateDictDir / f"{varName}.pt", weights_only=False)["modelState"])  # Load the model state from the trained data tensors
     
     model.eval()                                                                # Evaluate current state of the model to enable prediction
     likelihood.eval()                                                           # Evaluate current state of the likelihood to enable prediction
@@ -242,11 +242,11 @@ def maximiseTHP(modelName: str,
     optimalFeatureVals : str            Summary string of optimal feature values
     """
     
-    xData = torch.load(tensorDir / "xData.pt")                                  # Load the xData dictionary of tensors
+    xData = torch.load(tensorDir / "xData.pt", weights_only=True)               # Load the xData dictionary of tensors
     xMin, xMax = xData["xMin"], xData["xMax"]                                   # Extract the min and max values of the denormalised xData
-    outputMin = torch.load(tensorDir / f"{modelDict['dimensionType']}Min.pt")   # Load the tensor of output min values for the current model's dimension type
-    outputMax = torch.load(tensorDir / f"{modelDict['dimensionType']}Max.pt")   # Load the tensor of output max values for the current model's dimension type
-    VTReduced = torch.load(tensorDir / "VTReduced.pt")                          # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
+    outputMin = torch.load(tensorDir / f"{modelDict['dimensionType']}Min.pt", weights_only=True)  # Load the tensor of output min values for the current model's dimension type
+    outputMax = torch.load(tensorDir / f"{modelDict['dimensionType']}Max.pt", weights_only=True)  # Load the tensor of output max values for the current model's dimension type
+    VTReduced = torch.load(tensorDir / "VTReduced.pt", weights_only=True)       # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
     
     thpHistory = []                                                             # Store intermediate results from THP minimisation
     xObjective = differential_evolution(predictTHP,                             # Perform THP minimisation by differential evolution of predictTHP function

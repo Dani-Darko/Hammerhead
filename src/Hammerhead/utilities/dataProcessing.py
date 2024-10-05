@@ -205,7 +205,7 @@ def computeAllTensors(tensorParentDir: Path, tensorDirStem: str, caseDirList: li
     xExpanded = torch.from_numpy(np.array([_inferFeatures(caseDir) for caseDir in caseDirList]))  # Infer feature values from path name for each case directory and convert it to an unstandardised (expanded) feature tensor
     xExpanded = xExpanded[:, :features]                                         # Only use the first n columns, where n is the number of features (if computing single-Re tensors, the last Re variable is not used)
     try:                                                                        # Attempt to load an existing xData tensor (this will fail if it doesn't exist)
-        xExpandedExisting = torch.load(tensorParentDir / f"{tensorDirStem}_harmonics_2" / "xData.pt")["xExpanded"]  # Load the xData[xExpanded] harmonics=2 tensor (if it exists in the current tensorDir)
+        xExpandedExisting = torch.load(tensorParentDir / f"{tensorDirStem}_harmonics_2" / "xData.pt", weights_only=True)["xExpanded"]  # Load the xData[xExpanded] harmonics=2 tensor (if it exists in the current tensorDir)
         if torch.equal(xExpanded, xExpandedExisting):                           # ... compare the new and existing x-data tensors
             return                                                              # ... if they are identical, assume that this tensor group is up-to-date and exit
     except FileNotFoundError:                                                   # If the xData.pt tensor doesn't exist ...
