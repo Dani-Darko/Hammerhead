@@ -58,20 +58,38 @@ def dbPopulate(domain: str, nProc: int, openfoam: str, hfmParamsOverride: dict[s
     hfmParams = loadyaml("hfmParams", override = hfmParamsOverride)             # Load HFM parameters from ./resources/hfmParams.yaml; edit this file to change these parameters
     hfmParams["domainType"] = domain                                            # Add specified --domain parameter to HFM parameter dictionary (so all parameters are contained in a single obj)
     
+    xArray, uniqueCases = computeUniqueCases(hfmParams)                         # Compute x-coordinates, and a list of unique cases, each containing the corresponding y-coordinates and a list of duplicate parameter combinations
+    filteredUniqueCases, _ = filterUniqueCases(uniqueCases)                     # Filter out cases corresponding to entries in the ignoreCaseList text file
+    
+    dbTaskManager(xArray, filteredUniqueCases, hfmParams, nProc, openfoam)      # Start task manager with final list of cases, which will process nProc cases simulateously and provide user with status updates
+    print("Database population process has finished")
+    
+def filterUniqueCases(uniqueCases: list[list[np.ndarray, list[float]]]) -> tuple[list[list[np.ndarray, list[float]]], int]:
+    """
+    Filters unique cases based on the ignoreCaseList.txt file, removing all
+        sets of unique cases equivalent to entries in the text file
+    
+    Parameters
+    ----------
+    uniqueCases : list                  List of unique cases, where unique case is a list of the form [yArray, [params1], [params2], ..]
+
+    Returns
+    -------
+    filteredUniqueCases : list          List of unique cases formatted as uniqueCases, but without cases corresponding to entries in ignoreCaseList
+    ignoreCaseListLen : int             Number of unique entries in the ignoreCaseList
+    """
     try:                                                                        # Load ignoreCaseList if it exists (a FileNotFoundError exception is raised otherwise)
         ignoreCaseList = np.loadtxt("./resources/ignoreCaseList.txt")           # This file contains points in the parameter space for which data already exists elsewhere (or data that is not needed)
     except FileNotFoundError:                                                   # If no ignoreCaseList.txt exists in the ./resources directory ...
         ignoreCaseList = np.array([]).reshape(0, 5)                             # ... construct an empty array with a shape matching the expected ignoreCaseList
     ignoreCaseList = set(tuple(x) for x in ignoreCaseList)                      # Convert ignoreCaseList array into a set of tuples (each tuple is a single case to be skipped)
     
-    xArray, uniqueCases = computeUniqueCases(hfmParams)                         # Compute x-coordinates, and a list of unique cases, each containing the corresponding y-coordinates and a list of duplicate parameter combinations
-    uniqueFilteredCases = []                                                    # Prepare empty list that will contain filtered unique cases ignoring specified parameter combinations
+    filteredUniqueCases = []                                                    # Prepare empty list that will contain filtered unique cases ignoring specified parameter combinations
     for uniqueCase in uniqueCases:                                              # Iterate over all unique cases ...
         if not bool(set(tuple(x) for x in uniqueCase[1:]) & ignoreCaseList):    # ... if the set of cases (all duplicates of one unique case) is disjoint with the ignoreCaseList set (their union is empty)
-            uniqueFilteredCases.append(uniqueCase)                              # ... add this unique case to the final list of cases to be used for database population
+            filteredUniqueCases.append(uniqueCase)                              # ... add this unique case to the final list of cases to be used for database population
     
-    dbTaskManager(xArray, uniqueFilteredCases, hfmParams, nProc, openfoam)      # Start task manager with final list of cases, which will process nProc cases simulateously and provide user with status updates
-    print("Database population process has finished")
+    return filteredUniqueCases, len(ignoreCaseList)
 
 
 def computeUniqueCases(hfmParams: dict[str, float]) -> tuple[np.ndarray, list[list[np.ndarray, list[float]]]]:
