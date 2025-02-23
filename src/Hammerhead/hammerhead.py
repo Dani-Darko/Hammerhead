@@ -75,13 +75,13 @@ def setup_argparse() -> ArgumentParser:
     parser.add_argument(       '--k2_num',     action="store", type=int,   required=False, default=None,                                             help="Number of wavenumbers between k2_min and k2_max (inclusive); takes precedence if specified")
     
     # Optional arguments to override trainingParams.yaml
-    parser.add_argument(       '--layers',     action="store", type=int,   required=False, default=[], nargs="*",                                    help="Number of hidden layers for NN architecture; takes precedence if specified")
     parser.add_argument(       '--modes',      action="store", type=int,   required=False, default=None,                                             help="Number of PCA modes used for training; takes precedence if specified")
-    parser.add_argument(       '--neurons',    action="store", type=int,   required=False, default=[], nargs="*",                                    help="Number of neurons per layer for NN architecture; takes precedence if specified")
-    parser.add_argument(       '--kernelsGP',  action="store", type=str,   required=False, default=[], nargs="*", choices=availableKernelsGP,        help="Types of kernel to use for GP, see gpytorch.kernels documentation; takes precedence if specified")
-    parser.add_argument(       '--kernelsRBF', action="store", type=str,   required=False, default=[], nargs="*", choices=availableKernelsRBF,       help="Types of kernel to use for RBF, see scipy.interpolate.RBFInterpolator documentation; takes precedence if specified")
     parser.add_argument(       '--samples',    action="store", type=int,   required=False, default=None,                                             help="Number of times training is performed; takes precedence if specified")
-    parser.add_argument(       '--valSplit',   action="store", type=float, required=False, default=[], nargs="*",                                    help="Ratio of data used for validation; takes precedence if specified")
+    parser.add_argument(       '--valSplits',  action="store", type=float, required=False, default=[], nargs="*",                                    help="Ratio of data used for validation; takes precedence if specified")
+    parser.add_argument(       '--RBFKernels', action="store", type=str,   required=False, default=[], nargs="*", choices=availableKernelsRBF,       help="Types of kernel to use for RBF, see scipy.interpolate.RBFInterpolator documentation; takes precedence if specified")
+    parser.add_argument(       '--NNLayers',   action="store", type=int,   required=False, default=[], nargs="*",                                    help="Number of hidden layers for NN architecture; takes precedence if specified")
+    parser.add_argument(       '--NNNeurons',  action="store", type=int,   required=False, default=[], nargs="*",                                    help="Number of neurons per layer for NN architecture; takes precedence if specified")
+    parser.add_argument(       '--GPKernels',  action="store", type=str,   required=False, default=[], nargs="*", choices=availableKernelsGP,        help="Types of kernel to use for GP, see gpytorch.kernels documentation; takes precedence if specified")
 
     return parser
 
@@ -124,7 +124,7 @@ def parse_args(parser: ArgumentParser) -> Namespace:
     
     for arg in ['plot', 'search', 'train']:                                     # For each of the --plot, --search and --train arguments ...
             if "all" in getattr(args, arg):                                     # ... if "all" has been specified ...
-                setattr(args, arg, available_models)                            # ... replace "all" with list of all possible inputs (so these arguments are ALWAYS a list)
+                setattr(args, arg, availableModels)                             # ... replace "all" with list of all possible inputs (so these arguments are ALWAYS a list)
      
     if args.noTensor:                                                           # If tensor update process is disabled ...
         for arg in ["plot", "train"]:                                           # ... iterate over --plot and --train arguments (both of which require tensor data if enabled)
@@ -175,17 +175,17 @@ def parse_args(parser: ArgumentParser) -> Namespace:
             raise RuntimeError(f"--{arg} must not be less than 1")
             
     # Enforce minimum values (list of values)
-    for arg in ["layers", "neurons"]:
+    for arg in ["NNLayers", "NNNeurons"]:
         if len(getattr(args, arg)) != 0 and any([val < 1 for val in getattr(args, arg)]):
             raise RuntimeError(f"Every entry in --{arg} must not be less than 1")
             
     # Enforce bounds
-    if len(args.valSplit) != 0 and any([(val <= 0 or val >= 1) for val in args.valSplit]):
-        raise RuntimeError(f"Every entry in --valSplit must be greater than 0 but less than 1")
+    if len(args.valSplits) != 0 and any([(val <= 0 or val >= 1) for val in args.valSplits]):
+        raise RuntimeError(f"Every entry in --valSplits must be greater than 0 but less than 1")
         
     # Compile all trainingParams arguments into a single dictionary
     args.trainingParams = {arg: getattr(args, arg) for arg in ["modes", "samples"] if getattr(args, arg) is not None}
-    args.trainingParams |= {arg: getattr(args, arg) for arg in ["layers", "neurons", "kernelsGP", "kernelsRBF", "valSplit"] if len(getattr(args, arg)) != 0}
+    args.trainingParams |= {arg: getattr(args, arg) for arg in ["valSplits", "RBFKernels", "NNLayers", "NNNeurons", "GPKernels"] if len(getattr(args, arg)) != 0}
 
     return args 
     
@@ -213,8 +213,8 @@ if __name__ == "__main__":
     
     args: Namespace = parse_args(setup_argparse())                              # Parse and validate arguments
     if not args.console:                                                        # If console-only mode not requested, GUI mode is used ...
-        from hammerheadQt import launch_gui                                     # ... load necessary GUI resources into memory
-        launch_gui(args)                                                        # ... launch HammerHead GUI and autofill provided arguments
+        from hammerheadQt import launchGui                                      # ... load necessary GUI resources into memory
+        launchGui(args, availableKernelsGP)                                     # ... launch HammerHead GUI and autofill provided arguments
     else:
         if not args.noHFM:                                                      # If HFM database population process is enabled ...
             dbPopulate(args.domain, args.nProc, args.openfoam, args.hfmParams)  # Utilities -> Populate the database with HFM data generated by OpenFOAM

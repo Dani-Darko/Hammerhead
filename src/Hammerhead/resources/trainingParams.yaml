@@ -1,7 +1,7 @@
-layers: [1, 2, 3, 4]                                                            # Number of hidden layers for NN architecture
 modes: 5                                                                        # Number of PCA modes to train with
-neurons: [8, 16, 32, 64]                                                        # Number of neurons per layer for NN architecture
-kernelsGP: [MaternKernel]                                                       # Type of kernel to use for GP, see gpytorch.kernels documentation [MaternKernel, RBFKernel, RQKernel, ...]
-kernelsRBF: [inverse_multiquadric]                                              # Type of kernel to use for RBF, see scipy.interpolate.RBFInterpolator "kernel" parameter
 samples: 3                                                                      # Number of times training is performed (each time with unique random hyperparameter initialisation)
-validationSplit: [0.35]                                                         # Ratio of data used for validation (0.35 = 35% used for validation, 65% used for training)
+valSplits: [0.35]                                                               # Ratio of data used for validation (0.35 = 35% used for validation, 65% used for training)
+RBFKernels: [inverse_multiquadric]                                              # Type of kernel to use for RBF, see scipy.interpolate.RBFInterpolator "kernel" parameter
+NNLayers: [1, 2, 3, 4]                                                          # Number of hidden layers for NN architecture
+NNNeurons: [8, 16, 32, 64]                                                      # Number of neurons per layer for NN architecture
+GPKernels: [MaternKernel]                                                       # Type of kernel to use for GP, see gpytorch.kernels documentation [MaternKernel, RBFKernel, RQKernel, ...]

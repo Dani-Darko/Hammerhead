@@ -81,15 +81,15 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
     torch.set_num_threads(nProc)                                                # Limit PyTorch to number of threads specified by nProc
     
     trainingParams = loadyaml("trainingParams", override = trainingParamsOverride)  # Load the training parameters from ./resources/trainingParams.yaml; edit this file to use different parameters
-    trainingParams["kernelsGP"] = [getattr(kernels, kernel) for kernel in trainingParams["kernelsGP"]]  # Replace gpytorch kernel identifier strings with the kernel objects
+    trainingParams["GPKernels"] = [getattr(kernels, kernel) for kernel in trainingParams["GPKernels"]]  # Replace gpytorch kernel identifier strings with the kernel objects
     
-    for param in ["layers", "neurons", "validationSplit", "kernelsGP", "kernelsRBF"]:  # As the user has the option to provide a single value or a list of values for these params ...
+    for param in ["valSplits", "RBFKernels", "NNLayers", "NNNeurons", "GPKernels"]:  # As the user has the option to provide a single value or a list of values for these params ...
         if isinstance(trainingParams[param], (int, float)):                     # ... if a single value is provided
             trainingParams[param] = [trainingParams[param]]                     # ... ensure that it is always a list (needs to be iterable for code below)
             
-    valSplitMaxDP = max([len(str(valSplit).split(".")[-1]) for valSplit in trainingParams["validationSplit"]])  # Compute maximum number of decimals places used by validationSplit
-    layersPad = max([len(str(layers)) for layers in trainingParams["layers"]])  # Compute layers string padding size to accommodate largest requested layer number
-    neuronsPad = max([len(str(neurons)) for neurons in trainingParams["neurons"]])  # Compute neurons string padding size to accommodate largest requested neuron number
+    valSplitMaxDP = max([len(str(valSplit).split(".")[-1]) for valSplit in trainingParams["valSplits"]])  # Compute maximum number of decimals places used by validationSplit
+    layersPad = max([len(str(layers)) for layers in trainingParams["NNLayers"]])  # Compute layers string padding size to accommodate largest requested layer number
+    neuronsPad = max([len(str(neurons)) for neurons in trainingParams["NNNeurons"]])  # Compute neurons string padding size to accommodate largest requested neuron number
     samplesPad = len(str(trainingParams["samples"] - 1))                        # Compute padded string size for number of samples
     
     modelPrefix["M"]["dimensionSize"] = trainingParams["modes"]                 # If model is M (modal), update the dimensionSize to be the number of modes specified in trainingParams
@@ -167,8 +167,8 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
         featAllMask, featAnyMask, featMidMask = _computeTensorMasks()
 
         for n in tqdm(range(trainingParams["samples"]), desc="Processing samples", leave=False):  # Repeat training "samples" times, each time using a different random validationSplit seed and different initial hyperparameters
-            for validationSplit in (valPBar := tqdm(trainingParams["validationSplit"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
-                valPBar.set_description(f"Processing validationSplit={validationSplit}")  # Update progress bar with current validationSplit
+            for valSplit in (valPBar := tqdm(trainingParams["valSplits"], leave=False)):  # Iterate over all requested validation split sizes (with progress bar)
+                valPBar.set_description(f"Processing valSplit={valSplit}")  # Update progress bar with current validationSplit
                 for modelName in (modelPBar := tqdm(trainTasks, leave=False)):  # Iterate over all tasks specified in --train (with labelled progress bar)
                     modelPBar.set_description(f"Processing model={modelName}")  # Update progress bar with current model
                     for var in (varPBar := tqdm(modelPrefix[ modelName[0] ]["variables"], leave=False)):  # Also iterate over all variables available for this model (with labelled progress bar)
@@ -184,7 +184,7 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
                         midIdx = torch.arange(dataSize)[featAnyMask & ~(endMask| featMidMask)]  # Indices of cases placed in the MIDDLE of the tensor (medium priority for training); partial boundary, excluding full boundary
                         endIdx = torch.arange(dataSize)[endMask | featMidMask]  # Indices of cases placed at the END of the tensor (maximum priority for training); full boundary, including middle-range cases
 
-                        validSize = int(np.floor(validationSplit * dataSize))   # Compute the size of the validation data set, default is 35% of full data set for validation
+                        validSize = int(np.floor(valSplit * dataSize))          # Compute the size of the validation data set, default is 35% of full data set for validation
                             
                         startIdx, midIdx = startIdx[torch.randperm(startIdx.shape[0])], midIdx[torch.randperm(midIdx.shape[0])]  # randomly shuffle low- and medium-priority case indices
                         indices = torch.hstack((startIdx, midIdx, endIdx))      # Stack all indices to get a single tensor of indices
@@ -199,39 +199,39 @@ def mlTrain(domain: str, trainTasks: list[str], nProc: int, trainingParamsOverri
                         #######################################################
                         
                         if modelName[1:] == "NN":                               # If model is a neural network, we need to also iterate over requested layers/neurons
-                            for layers in (layersPBar := tqdm(trainingParams["layers"], leave=False)):  # Iterate over all requested NN layer numbers (with labelled progress bar)
-                                layersPBar.set_description(f"Processing layers={layers}")  # Update progress bar with current NN layer number
-                                for neurons in (neuronsPBar := tqdm(trainingParams["neurons"], leave=False)):  # Iterate over all requested NN neuron numbers (with labelled progress bar)
-                                    neuronsPBar.set_description(f"Processing neurons={neurons}")  # Update progress bar with current NN neuron number
+                            for layers in (layersPBar := tqdm(trainingParams["NNLayers"], leave=False)):  # Iterate over all requested NN layer numbers (with labelled progress bar)
+                                layersPBar.set_description(f"Processing NNLayers={layers}")  # Update progress bar with current NN layer number
+                                for neurons in (neuronsPBar := tqdm(trainingParams["NNNeurons"], leave=False)):  # Iterate over all requested NN neuron numbers (with labelled progress bar)
+                                    neuronsPBar.set_description(f"Processing NNNeurons={neurons}")  # Update progress bar with current NN neuron number
                                     
                                     targetDir = "_".join(                       # Construct string of target model state dictionary directory (innermost)
-                                        [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
-                                         f"layers_{layers:0{layersPad}d}",
-                                         f"neurons_{neurons:0{neuronsPad}d}",
+                                        [f"valSplit_{valSplit:.{valSplitMaxDP}f}",
+                                         f"NNLayers_{layers:0{layersPad}d}",
+                                         f"NNNeurons_{neurons:0{neuronsPad}d}",
                                          f"n_{n:0{samplesPad}d}"])
                                     _callTrain(layers = layers, neurons = neurons)  # Call model-specific ML training function (layers and neurons are NN-specific kwargs)
                                     
                         ########################################################
                         
                         if modelName[1:] == "GP":                               # If model is a Gaussian Process, loop over GP kernels
-                            for kernel in (kernelGPPBar := tqdm(trainingParams["kernelsGP"], leave=False)):  # Iterate over all requested GP kernels (with labelled progress bar)
-                                kernelGPPBar.set_description(f"Processing kernel={kernel.__name__}")  # Update progress bar with current GP kernel name
+                            for kernel in (kernelGPPBar := tqdm(trainingParams["GPKernels"], leave=False)):  # Iterate over all requested GP kernels (with labelled progress bar)
+                                kernelGPPBar.set_description(f"Processing GPKernel={kernel.__name__}")  # Update progress bar with current GP kernel name
                                 
                                 targetDir = "_".join(                           # Construct string of target model state dictionary directory (innermost)
-                                            [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
-                                             f"kernel_{kernel.__name__}",
+                                            [f"valSplit_{valSplit:.{valSplitMaxDP}f}",
+                                             f"GPKernel_{kernel.__name__}",
                                              f"n_{n:0{samplesPad}d}"])
                                 _callTrain(kernel = kernel)                     # Call model-specific ML training function (kernel in a GP-specific kwarg)
                         
                         ########################################################
                         
                         if modelName[1:] == "RBF":                              # If model is a Radial Basis Function, loop over RBF kernels
-                            for kernel in (kernelRBFPBar := tqdm(trainingParams["kernelsRBF"], leave=False)):  # Iterate over all requested RBF kernels (with labelled progress bar)
-                                kernelRBFPBar.set_description(f"Processing kernel={kernel}")  # Update progress bar with current RBF kernel name
+                            for kernel in (kernelRBFPBar := tqdm(trainingParams["RBFKernels"], leave=False)):  # Iterate over all requested RBF kernels (with labelled progress bar)
+                                kernelRBFPBar.set_description(f"Processing RBFKernel={kernel}")  # Update progress bar with current RBF kernel name
                                 
                                 targetDir = "_".join(                           # Construct string of target model state dictionary directory (innermost)
-                                            [f"validationSplit_{validationSplit:.{valSplitMaxDP}f}",
-                                             f"kernel_{''.join([s.capitalize() for s in kernel.split('_')])}",  # Remove underscores and convert to ClassCase
+                                            [f"valSplit_{valSplit:.{valSplitMaxDP}f}",
+                                             f"RBFKernel_{''.join([s.capitalize() for s in kernel.split('_')])}",  # Remove underscores and convert to ClassCase
                                              f"n_{n:0{samplesPad}d}"])
                                 _callTrain(kernel = kernel)                     # Call model-specific ML training function (kernel in a RBF-specific kwarg)
                         

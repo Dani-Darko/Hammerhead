@@ -271,7 +271,7 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
     ----------
     plotParams : dict               Dictionary of plotting parameters
     modelDir : Path                 Trained model directory (containing multiple architectures)
-    lossTable : array_like          Loss table array with columns [valSplit, layers, neurons, var, dataArr]
+    lossTable : array_like          Loss table array with columns [valSplit, NNLayers, NNNeurons, var, dataArr]
 
     Returns
     -------

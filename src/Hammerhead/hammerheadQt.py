@@ -37,10 +37,10 @@ import sys                                                                      
 ###########################################################################################################################################
 
 
-class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
+class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
 
-    def __init__(self, args, parent=None):
-        super(HammerHeadMain, self).__init__(parent)
+    def __init__(self, args, availableKernelsGP, parent=None):
+        super(HammerheadMain, self).__init__(parent)
         self.setupUi(self)
         self.setFixedSize(self.size())                                          # Disable resizing or maximizing window
         
@@ -52,8 +52,8 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
             self.labelButtonHFM.setEnabled(False)                               # ... disable the HFM settings "button"
         
         # Instantiate all modal/dialog objects
-        self.dialogHFMSettings = modalHFMSettings.HFMSettings(args.hfmParams, self)  # HFM settings dialog
-        self.dialogSMSettings = modalSMSettings.SMSettings(self)                # SM settings    -> !!! noTensor, --search, --train, args.trainingParams
+        self.dialogHFMSettings = modalHFMSettings.HFMSettings(self, args.hfmParams)  # HFM settings dialog
+        self.dialogSMSettings = modalSMSettings.SMSettings(self, args.noTensor, args.train, args.search, args.trainingParams, availableKernelsGP)  # SM settings
                                                                                 # -> !!! --plot 
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
@@ -326,7 +326,7 @@ class HammerHeadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.dialogUnderscoreEnabled = not self.dialogUnderscoreEnabled         # Invert the visibility state of the underscore for the next update
 
 
-def launch_gui(args: Namespace) -> None:
+def launchGui(args: Namespace, availableKernelsGP: list[str]) -> None:
     """
     Helper function that creates Qt application, attaches the Hammerhead main
         UI window to it, and manages the execution of the GUI until it is
@@ -335,6 +335,7 @@ def launch_gui(args: Namespace) -> None:
     Parameters
     ----------
     args : Namespace                    argparse object containing parsed arguments
+    availableKernelsGP : list[str]      list of available GP kernels, passed to model training window
 
     Returns
     -------
@@ -342,8 +343,8 @@ def launch_gui(args: Namespace) -> None:
     """
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon('./assets/images/hammeheadMascot.png'))
-    hammerHeadMain = HammerHeadMain(args)
-    hammerHeadMain.show()
+    hammerheadMain = HammerheadMain(args, availableKernelsGP)
+    hammerheadMain.show()
     sys.exit(app.exec())
 
 ###############################################################################

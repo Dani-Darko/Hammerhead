@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>1000</width>
-    <height>721</height>
+    <height>725</height>
    </rect>
   </property>
   <property name="font">
@@ -38,7 +38,7 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayoutSummary">
       <item>
-       <widget class="QPlainTextEdit" name="plainTextEditSummary">
+       <widget class="QTextEdit" name="textEditSummary">
         <property name="font">
          <font>
           <family>Consolas</family>
@@ -46,6 +46,9 @@
           <weight>50</weight>
           <bold>false</bold>
          </font>
+        </property>
+        <property name="mouseTracking">
+         <bool>false</bool>
         </property>
         <property name="verticalScrollBarPolicy">
          <enum>Qt::ScrollBarAlwaysOff</enum>
@@ -239,7 +242,7 @@
             </widget>
            </item>
            <item row="5" column="0" colspan="2">
-            <widget class="QListWidget" name="listWidgetValSplit">
+            <widget class="QListWidget" name="listWidgetValSplits">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                <horstretch>0</horstretch>
@@ -277,6 +280,9 @@
              </property>
              <property name="viewMode">
               <enum>QListView::ListMode</enum>
+             </property>
+             <property name="sortingEnabled">
+              <bool>true</bool>
              </property>
              <item>
               <property name="text">
@@ -329,7 +335,7 @@
               <enum>QTabWidget::West</enum>
              </property>
              <property name="currentIndex">
-              <number>2</number>
+              <number>0</number>
              </property>
              <property name="documentMode">
               <bool>true</bool>
@@ -406,7 +412,7 @@
                <item>
                 <layout class="QGridLayout" name="gridLayoutRBFKernel">
                  <item row="4" column="1" colspan="2">
-                  <widget class="QListWidget" name="listWidgetRBFKernel">
+                  <widget class="QListWidget" name="listWidgetRBFKernels">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -441,6 +447,9 @@
                    </property>
                    <property name="viewMode">
                     <enum>QListView::ListMode</enum>
+                   </property>
+                   <property name="sortingEnabled">
+                    <bool>true</bool>
                    </property>
                    <item>
                     <property name="text">
@@ -755,6 +764,9 @@
                    <property name="viewMode">
                     <enum>QListView::ListMode</enum>
                    </property>
+                   <property name="sortingEnabled">
+                    <bool>true</bool>
+                   </property>
                    <item>
                     <property name="text">
                      <string>1</string>
@@ -929,20 +941,9 @@
                    <property name="viewMode">
                     <enum>QListView::ListMode</enum>
                    </property>
-                   <item>
-                    <property name="text">
-                     <string>8</string>
-                    </property>
-                    <property name="background">
-                     <brush brushstyle="SolidPattern">
-                      <color alpha="50">
-                       <red>107</red>
-                       <green>107</green>
-                       <blue>107</blue>
-                      </color>
-                     </brush>
-                    </property>
-                   </item>
+                   <property name="sortingEnabled">
+                    <bool>true</bool>
+                   </property>
                    <item>
                     <property name="text">
                      <string>16</string>
@@ -974,6 +975,20 @@
                    <item>
                     <property name="text">
                      <string>64</string>
+                    </property>
+                    <property name="background">
+                     <brush brushstyle="SolidPattern">
+                      <color alpha="50">
+                       <red>107</red>
+                       <green>107</green>
+                       <blue>107</blue>
+                      </color>
+                     </brush>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>8</string>
                     </property>
                     <property name="background">
                      <brush brushstyle="SolidPattern">
@@ -1091,7 +1106,7 @@
                <item>
                 <layout class="QGridLayout" name="gridLayoutGPKernel">
                  <item row="4" column="1" colspan="2">
-                  <widget class="QListWidget" name="listWidgetGPKernel">
+                  <widget class="QListWidget" name="listWidgetGPKernels">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1126,6 +1141,9 @@
                    </property>
                    <property name="viewMode">
                     <enum>QListView::ListMode</enum>
+                   </property>
+                   <property name="sortingEnabled">
+                    <bool>true</bool>
                    </property>
                    <item>
                     <property name="text">
