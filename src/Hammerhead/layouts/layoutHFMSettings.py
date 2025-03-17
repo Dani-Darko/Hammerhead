@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'layoutHFMSettings.ui'
+# Form implementation generated from reading ui file './layouts/layoutHFMSettings.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -15,7 +15,7 @@ class Ui_HFMSettingsDialog(object):
     def setupUi(self, HFMSettingsDialog):
         HFMSettingsDialog.setObjectName("HFMSettingsDialog")
         HFMSettingsDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        HFMSettingsDialog.resize(1000, 700)
+        HFMSettingsDialog.resize(1000, 725)
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(10)

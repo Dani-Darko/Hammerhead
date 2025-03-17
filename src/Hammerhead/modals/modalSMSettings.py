@@ -224,20 +224,33 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                         }for the following dimension outputs (total of {
                           self.spinBoxSamples.value() * self.listWidgetValSplits.count() * len(activeArch) * archParamCombn
                         } tasks):<br>&nbsp;&nbsp;""" + str(activeArch) + "<br><br>")
+
+        sm_string = (f"""> Surrogate model training is <b><span style="color: #E74856;">DISABLED</span></b> and is not queued to run. To enable it, check the "Run surrogate model training" checkbox."""
+                     if not self.groupBoxParameters.isChecked() else
+                     f"""> Surrogate model training is <b><span style="color: #13A10E;">ENABLED</b></span> with:
+                         <br>
+                         &nbsp;&nbsp;<b>{self.spinBoxSamples.value()} random sample{"" if self.spinBoxSamples.value() == 1 else "s"}</b> per architecture
+                         <br>
+                         &nbsp;&nbsp;<b>{self.listWidgetValSplits.count()} validation split{"" if self.listWidgetValSplits.count() == 1 else "s"}</b> per architecture
+                         {'(<b><span style="color: #E74856;">INVALID</span></b>)' if self.listWidgetValSplits.count() == 0 else ""}""")
+
+        header = f"""> Hammerhead is running in <b>{self.parent().domain}</b> mode.
+                     <br><br>
+                     > Tensors <b><span style="color: {"#13A10E" if tensorUpdate else "#E74856"};">WILL {"" if tensorUpdate else "NOT "}BE</b> recomputed from the case database.
+                       To {"disable" if tensorUpdate else "enable"} this, {"uncheck" if tensorUpdate else "check"} the "Update tensors from HFM case database" checkbox.
+                     <br><br>
+                     {sm_string}
+                     <br><br>
+                     > Optimal search <b><span style="color: {"#13A10E" if optimalSearch else "#E74856"};">WILL {"" if optimalSearch else "NOT "}BE</b> performed
+                        on existing models to find the shape parameters resulting in maximum THP.
+                       To {"disable" if optimalSearch else "enable"} this, {"uncheck" if optimalSearch else "check"} the "Run optimal search" checkbox."""
         
         if self.groupBoxParameters.isChecked():                                 # Case 1: Surrogate model is enabled
             self.textEditSummary.setText(                                       # ... generate relevant text for training information and tasks to be executed
                 f"""<html><head/>
                      <body style="color: #CCCCCC; background-color: #0C0C0C;">
                        <p>
-                         > Hammerhead is running in <b>{self.parent().domain}</b> mode.
-                         <br><br>
-                         > Surrogate model training is <b><span style="color: #13A10E;">ENABLED</b></span> with:
-                         <br>
-                         &nbsp;&nbsp;<b>{self.spinBoxSamples.value()} random sample{"" if self.spinBoxSamples.value() == 1 else "s"}</b> per architecture
-                         <br>
-                         &nbsp;&nbsp;<b>{self.listWidgetValSplits.count()} validation split{"" if self.listWidgetValSplits.count() == 1 else "s"}</b> per architecture
-                         {'(<b><span style="color: #E74856;">INVALID</span></b>)' if self.listWidgetValSplits.count() == 0 else ""}
+                         {header}
                          <br><br>
                          {"-"*64}
                          <br><br>
@@ -251,13 +264,6 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                          > There are currently {sum(list(tensorsRe.values()))} cases stored as tensors with <b>{self.spinBoxModes.value()} modes</b>.
                          <br>
                          &nbsp;&nbsp;Re = {sorted(tensorsRe.keys())}
-                         <br>
-                         > Tensors <b><span style="color: {"#13A10E" if tensorUpdate else "#E74856"};">WILL {"" if tensorUpdate else "NOT "}BE</b> recomputed from the case database.
-                           To {"disable" if tensorUpdate else "enable"} this, {"uncheck" if tensorUpdate else "check"} the "Update tensors from HFM case database" checkbox.
-                         <br><br>
-                         > After training, optimal search <b><span style="color: {"#13A10E" if optimalSearch else "#E74856"};">WILL {"" if optimalSearch else "NOT "}BE</b> performed
-                           with every available model to find the shape parameters resulting in maximum THP.
-                           To {"disable" if optimalSearch else "enable"} this, {"uncheck" if optimalSearch else "check"} the "Run optimal search" checkbox.
                          <br><br>
                          {"-"*64}
                          <br><br>
@@ -272,9 +278,7 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                 f"""<html><head/>
                      <body style="color: #CCCCCC; background-color: #0C0C0C;">
                        <p>
-                         > Hammerhead is running in <b>{self.parent().domain}</b> mode.
-                         <br><br>
-                         > Surrogate model training is <b><span style="color: #E74856;">DISABLED</span></b> and is not queued to run. To enable it, check the "Run surrogate model training" checkbox.
+                         {header}
                        </p>
                      </body>
                    </html>""")
