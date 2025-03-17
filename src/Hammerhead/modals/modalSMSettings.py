@@ -225,7 +225,7 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                           self.spinBoxSamples.value() * self.listWidgetValSplits.count() * len(activeArch) * archParamCombn
                         } tasks):<br>&nbsp;&nbsp;""" + str(activeArch) + "<br><br>")
 
-        sm_string = (f"""> Surrogate model training is <b><span style="color: #E74856;">DISABLED</span></b> and is not queued to run. To enable it, check the "Run surrogate model training" checkbox."""
+        smString = (f"""> Surrogate model training is <b><span style="color: #E74856;">DISABLED</span></b> and is not queued to run. To enable it, check the "Run surrogate model training" checkbox."""
                      if not self.groupBoxParameters.isChecked() else
                      f"""> Surrogate model training is <b><span style="color: #13A10E;">ENABLED</b></span> with:
                          <br>
@@ -239,7 +239,7 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                      > Tensors <b><span style="color: {"#13A10E" if tensorUpdate else "#E74856"};">WILL {"" if tensorUpdate else "NOT "}BE</b> recomputed from the case database.
                        To {"disable" if tensorUpdate else "enable"} this, {"uncheck" if tensorUpdate else "check"} the "Update tensors from HFM case database" checkbox.
                      <br><br>
-                     {sm_string}
+                     {smString}
                      <br><br>
                      > Optimal search <b><span style="color: {"#13A10E" if optimalSearch else "#E74856"};">WILL {"" if optimalSearch else "NOT "}BE</b> performed
                         on existing models to find the shape parameters resulting in maximum THP.
