@@ -27,7 +27,7 @@ from utilities.dataProcessing import dbTensorUpdate                             
 from argparse import ArgumentParser, Namespace                                  # Other -> Parse and validate command line arguments
 from gpytorch import kernels                                                    # Other -> All available gpytorch kernels
 from inspect import signature                                                   # Other -> Get signature (params, returns) of functions
-from subprocess import CalledProcessError, check_output                         # Other -> Check openFOAM executable exists in current environment
+from subprocess import CalledProcessError, check_output                         # Other -> Check OpenFOAM executable exists in current environment
 
 import multiprocessing                                                          # Other -> Get number logical CPU cores, set context/start methods
 import os                                                                       # Other -> Path and working director manipulation tools
@@ -107,7 +107,7 @@ def parse_args(parser: ArgumentParser) -> Namespace:
         
     def _OFVersionWarning(openfoam_version):
         if openfoam_version not in ["2212", "2106"]:                            # Compare reported OpenFOAM version against list of supported versions
-            print(f"An unsupported version (v{openfoam_version}) of openFOAM has been detected. This may cause errors if sampling file format differs! (Supported versions: v2212, v2106)") 
+            print(f"An unsupported version (v{openfoam_version}) of OpenFOAM has been detected. This may cause errors if sampling file format differs! (Supported versions: v2212, v2106)")
             
     if not args.noHFM:                                                          # If HFM database population process is enabled, check that a compatible OpenFOAM version exists in current environment
         try:                                                                    # Get available OpenFOAM version as a string (this will fail if OpenFOAM doesn't exist on system)
@@ -119,8 +119,8 @@ def parse_args(parser: ArgumentParser) -> Namespace:
             except KeyError:                                                    # Rise a runtime exception, cannot continue without OpenFOAM if database population is requested
                 raise RuntimeError(f"{args.openfoam} not found in current environment."
                                     "  1) if you do not wish to run any simulations, specify --noHFM"
-                                    "  2) if you do wish run simulations, openFOAM versions 2212 or 2106 must be available on this system"
-                                    "  3) if a supported version of openFOAM exists on this system but not in this environment, specify its path via --openfoam")
+                                    "  2) if you do wish run simulations, OpenFOAM versions 2212 or 2106 must be available on this system"
+                                    "  3) if a supported version of OpenFOAM exists on this system but not in this environment, specify its path via --openfoam")
     
     for arg in ['plot', 'search', 'train']:                                     # For each of the --plot, --search and --train arguments ...
             if "all" in getattr(args, arg):                                     # ... if "all" has been specified ...
