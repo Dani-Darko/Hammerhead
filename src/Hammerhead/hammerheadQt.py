@@ -20,6 +20,7 @@ from layouts import layoutMain                                                  
 
 from modals import modalHFMSettings                                             # Modals -> HFM Settings
 from modals import modalSMSettings                                              # Modals -> SM Settings
+from modals import modalPlotViewer                                              # Modals -> Plot Viewer
 
 # IMPORTS: PyQt5 ##########################################################################################################################
 
@@ -54,30 +55,30 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         # Instantiate all modal/dialog objects
         self.dialogHFMSettings = modalHFMSettings.HFMSettings(self, args.hfmParams)  # HFM settings dialog
         self.dialogSMSettings = modalSMSettings.SMSettings(self, args.noTensor, args.train, args.search, args.trainingParams, availableKernelsGP)  # SM settings
-                                                                                # -> !!! --plot 
+        self.dialogPlotViewer = modalPlotViewer.PlotViewer(self, None)                                                                        # -> !!! --plot
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
         self.buttonProperties = {"buttonHFM":    {"object"     : self.labelButtonHFM,
                                                   "action"     : self.dialogHFMSettings.show,
-                                                  "dialogText" : ("Default text for HFM button"
+                                                  "dialogText" : ("Visualise and select the parameter ranges for populating the high-fidelity model database using OpenFOAM's chtMultiRegionSimpleFoam solver."
                                                                   if not args.noHFM else
-                                                                  "Default text for disabled HFM button"),
+                                                                  "High-fidelity model database population is disabled. To enable, launch without --noHFM and ensure that OpenFOAM v2106 or v2212 are accessible by Hammerhead."),
                                                   "enabled"    : not args.noHFM},
                                  "buttonSM":     {"object"     : self.labelButtonSM,
                                                   "action"     : self.dialogSMSettings.show,
-                                                  "dialogText" : "Default text for SM button",
+                                                  "dialogText" : "Select the algorithms, architectures and parameters for surrogate model training using data from the high-fidelity model database.",
                                                   "enabled"    : True},
-                                 "buttonPP":     {"object"     : self.labelButtonPP,
-                                                  "action"     : type(None),
-                                                  "dialogText" : "Default text for PP button",
+                                 "buttonPV":     {"object"     : self.labelButtonPV,
+                                                  "action"     : self.dialogPlotViewer.show,
+                                                  "dialogText" : "Visualise the performance and predictions of the trained surrogate models.",
                                                   "enabled"    : True},
                                  "buttonDomain": {"object"     : self.labelButtonDomain,
-                                                  "action"     : self.swapDomainPixmap,
-                                                  "dialogText" : "Default text for domain button",
+                                                  "action"     : self.swapDomains,
+                                                  "dialogText" : f"Toggle the domain of the fluid model that Hammerhead uses for all tasks. Currently selected domain: {self.domain}",
                                                   "enabled"    : True},
                                  "buttonStart":  {"object"     : self.labelButtonStart,
                                                   "action"     : type(None),
-                                                  "dialogText" : "Default text for start button",
+                                                  "dialogText" : "Run all enabled tasks. No tasks are currently queued to run.",
                                                   "enabled"    : True}}
         
         # Process all button objects, setting default states, applying pixmaps and computing bounding boxes
@@ -112,6 +113,7 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         self.dialogUnderscoreEnabled = False                                    # Flag for whether underscore is shown after dialog text
         self.dialogUnderscoreFlashTimer = QTimer(interval=500)                  # After dialog text is fully drawn, underscore will flash every 500ms
         self.dialogUnderscoreFlashTimer.timeout.connect(self.toggleDialogUnderscore)  # Toggle the underscore visibility with every underscore timer timeout
+        self.updateStartButtonString()                                          # Identify all enabled tasks and update the start button dialog string accordingly
         self.setDialogTargetText()                                              # Set dialog target text and begin drawing (as no buttons are hovered-over, this will show the default welcome message)
         
     @staticmethod   
@@ -174,7 +176,7 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         for button in self.buttonProperties.values():                           # Iterate over all buttons
             if button["state"] == "pressed":                                    # If the button is pressed, ignore it (here we deal with default or hover states only)
                 return                                                          # No need to iterate over any other buttons, if one is pressed no other buttons can be interacted with
-            if button["enabled"] and button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):  # If current button is enabled and mouse is hovered over the it's bounding region
+            if button["boundingBox"].containsPoint(event.pos(), Qt.OddEvenFill):  # If current button is enabled and mouse is hovered over the it's bounding region
                 self.updateButtonState(button, "hovered")                       # ... update button state to hovered (this will be ignored by updateButtonState if button is already in this state)
             else:                                                               # Otherwise, if mouse is not over the current button's bounding box
                 self.updateButtonState(button, "default")                       # ... set it's state to default (this will be ignored by updateButtonState if button is already in this state)
@@ -198,7 +200,7 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         if event.button() != Qt.LeftButton:                                     # Only allow left mouse clicks, any other mouse buttons will be ignored
             return                                                              # ... no need to process event further as this was not a left-click
         for button in self.buttonProperties.values():                           # Iterate over all buttons
-            if button["state"] == "hovered":                                    # ... if a button is currently in hovered state, it is eligible to be set to pressed
+            if button["enabled"] and button["state"] == "hovered":              # ... if a button is currently in hovered state, it is eligible to be set to pressed
                 self.updateButtonState(button, "pressed")                       # ... update button state to pressed (this will "lock" the button in this state as mouse move events will now be ignored)
                 return                                                          # ... no need to examine other buttons as only one button can be hovered-over at a time
 
@@ -229,10 +231,10 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
                     self.updateButtonState(button, "default")                   # ... return button default state as it is no longer being hovered-over
                 return                                                          # ... no need to examine other buttons as only one button can be clicked at a time
                 
-    def swapDomainPixmap(self) -> None:
+    def swapDomains(self) -> None:
         """
-        Swap domains and domain button pixmaps. Triggered by pressing the
-            domain button.
+        Swap domains, domain button string and pixmaps. Triggered by pressing
+            the domain button.
         
         Parameters
         ----------
@@ -246,6 +248,30 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         button = self.buttonProperties["buttonDomain"]                          # Temporary shorthand for domain button
         for state in ["default", "hovered", "pressed"]:                         # Iterate over all available button states, swapping in alternative pixmaps
             button["pixmap"][state], button["pixmap"][state+"Alt"] = button["pixmap"][state+"Alt"], button["pixmap"][state]
+        button["dialogText"] = f"Toggle the domain of the fluid model that Hammerhead uses for all tasks. Currently selected domain: {self.domain}"  # Update the button text for the current domain
+        self.updateButtonState(button, "hovered")                               # Re-issue button state update (pressed -> hovered) to draw new pixmap
+        self.setDialogTargetText()                                              # Force update of the dialog text to reflect new button text
+
+    def updateStartButtonString(self) -> None:
+        """
+        Updates the start button dialog text by inspecting the tasks enabled
+            across all child modal dialogs.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        tasks = [taskName
+                 for taskName, checkBox
+                 in zip(["database population", "tensor update", "surrogate model training", "optimal search"],
+                        [self.dialogHFMSettings.groupBoxHFMParameters, self.dialogSMSettings.checkBoxTensorUpdate, self.dialogSMSettings.groupBoxParameters, self.dialogSMSettings.checkBoxOptimalSearch])
+                 if checkBox.isChecked()]                                       # List contains task names of each corresponding checked task checkBox or groupBox
+        taskString = "No tasks are currently queued to run." if len(tasks) == 0 else f"Tasks currently queued to run: {', '.join(tasks)}."
+        self.buttonProperties["buttonStart"]["dialogText"] = f"Run all enabled tasks. {taskString}"
                 
     def updateSprite(self) -> None:
         """

@@ -102,7 +102,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QLabel" name="labelButtonPP">
+   <widget class="QLabel" name="labelButtonPV">
     <property name="geometry">
      <rect>
       <x>80</x>

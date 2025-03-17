@@ -82,6 +82,10 @@ class SMSettings(QDialog, layoutSMSettings.Ui_SMSettingsDialog):
                 case QPushButton():
                     obj.pressed.connect(self.updateSummaryText)
 
+        # Each object here represents a task for the parent window, connect the toggling of each to the update function in the main window
+        for checkBox in [self.checkBoxTensorUpdate, self.groupBoxParameters, self.checkBoxOptimalSearch]:
+            checkBox.toggled.connect(parent.updateStartButtonString)            # Toggling group/check boxes updates the main window start button dialog text
+
         self.pushButtonSaveAndReturn.pressed.connect(self.hide)                 # Pressing "save and return" button hides the dialog window
         
     def showEvent(self, event: QShowEvent) -> None:

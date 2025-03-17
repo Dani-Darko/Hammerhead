@@ -143,7 +143,8 @@ class HFMSettings(QDialog, layoutHFMSettings.Ui_HFMSettingsDialog):
             # The change of any slider should trigger the update of the corresponding label text, as well as the geometry plot
             slider.valueChanged.connect(lambda index, param=param: self.updateSliderLabel(param, index))
             slider.valueChanged.connect(lambda index: self.updatePlot())
-            
+
+        self.groupBoxHFMParameters.toggled.connect(parent.updateStartButtonString)  # Toggling HFM parameter group box updates main window start button dialog text
         self.pushButtonOpenCaseDatabase.pressed.connect(self.openCaseDatabase)  # Pressing "folder icon" button opens caseDatabase directory
         self.pushButtonOpenIgnoredCases.pressed.connect(self.openIgnoredCases)  # Pressing "file icon" button opens ignoreCaseList.txt file
         self.pushButtonReloadSummary.pressed.connect(self.startSummaryUpdate)   # Pressing "refresh icon" button starts the HFM summary update process

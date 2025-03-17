@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'layoutMain.ui'
+# Form implementation generated from reading ui file './layouts/layoutMain.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -48,11 +48,11 @@ class Ui_MainWindow(object):
         self.labelDialogContent.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
         self.labelDialogContent.setWordWrap(True)
         self.labelDialogContent.setObjectName("labelDialogContent")
-        self.labelButtonPP = QtWidgets.QLabel(self.centralwidget)
-        self.labelButtonPP.setGeometry(QtCore.QRect(80, 562, 100, 115))
-        self.labelButtonPP.setMouseTracking(True)
-        self.labelButtonPP.setText("")
-        self.labelButtonPP.setObjectName("labelButtonPP")
+        self.labelButtonPV = QtWidgets.QLabel(self.centralwidget)
+        self.labelButtonPV.setGeometry(QtCore.QRect(80, 562, 100, 115))
+        self.labelButtonPV.setMouseTracking(True)
+        self.labelButtonPV.setText("")
+        self.labelButtonPV.setObjectName("labelButtonPV")
         self.labelButtonStart = QtWidgets.QLabel(self.centralwidget)
         self.labelButtonStart.setGeometry(QtCore.QRect(430, 622, 50, 58))
         self.labelButtonStart.setMouseTracking(True)
