@@ -40,7 +40,7 @@ import subprocess                                                               
 
 def dbPopulate(domain: str, nProc: int, openfoam: str, hfmParamsOverride: dict[str, Any]) -> None:
     """
-    Using the specified high fidelty model parameters, compute and dispatch
+    Using the specified high fidelity model parameters, compute and dispatch
         unique simulations cases to the multiprocessing database population
         task manager
     

@@ -22,7 +22,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>High-Fidelty Model settings</string>
+   <string>High-Fidelity Model settings</string>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayoutMain">
    <item>

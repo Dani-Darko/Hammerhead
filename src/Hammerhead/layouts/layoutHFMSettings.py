@@ -657,7 +657,7 @@ class Ui_HFMSettingsDialog(object):
 
     def retranslateUi(self, HFMSettingsDialog):
         _translate = QtCore.QCoreApplication.translate
-        HFMSettingsDialog.setWindowTitle(_translate("HFMSettingsDialog", "High-Fidelty Model settings"))
+        HFMSettingsDialog.setWindowTitle(_translate("HFMSettingsDialog", "High-Fidelity Model settings"))
         self.groupBoxGeometryVisualisation.setTitle(_translate("HFMSettingsDialog", "Surface geometry visualisation"))
         self.groupBoxVisualisationParameters.setTitle(_translate("HFMSettingsDialog", "Geometry visualisation parameters"))
         self.labelVisualisationA1.setText(_translate("HFMSettingsDialog", "<html><head/><body><p>A<span style=\" vertical-align:sub;\">1 </span><span style=\" font-size:10pt;\">= 0.000</span></p></body></html>"))
