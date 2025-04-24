@@ -20,7 +20,7 @@ from layouts import layoutMain                                                  
 
 from modals import modalHFMSettings                                             # Modals -> HFM Settings
 from modals import modalSMSettings                                              # Modals -> SM Settings
-from modals import modalPlotViewer                                              # Modals -> Plot Viewer
+#from modals import modalPlotViewer                                              # Modals -> Plot Viewer
 
 # IMPORTS: PyQt5 ##########################################################################################################################
 
@@ -55,7 +55,7 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
         # Instantiate all modal/dialog objects
         self.dialogHFMSettings = modalHFMSettings.HFMSettings(self, args.hfmParams)  # HFM settings dialog
         self.dialogSMSettings = modalSMSettings.SMSettings(self, args.noTensor, args.train, args.search, args.trainingParams, availableKernelsGP)  # SM settings
-        self.dialogPlotViewer = modalPlotViewer.PlotViewer(self, None)                                                                        # -> !!! --plot
+        #self.dialogPlotViewer = modalPlotViewer.PlotViewer(self, None)                                                                        # -> !!! --plot
                         
         # Dictionary of button properties that will contain "button" objects (labels), their bounding box, current state, and all available pixmaps (dynamically filled within this function)
         self.buttonProperties = {"buttonHFM":    {"object"     : self.labelButtonHFM,
@@ -69,7 +69,7 @@ class HammerheadMain(QMainWindow, layoutMain.Ui_MainWindow):
                                                   "dialogText" : "Select the algorithms, architectures and parameters for surrogate model training using data from the high-fidelity model database.",
                                                   "enabled"    : True},
                                  "buttonPV":     {"object"     : self.labelButtonPV,
-                                                  "action"     : self.dialogPlotViewer.show,
+                                                  "action"     : type(None),
                                                   "dialogText" : "Visualise the performance and predictions of the trained surrogate models.",
                                                   "enabled"    : True},
                                  "buttonDomain": {"object"     : self.labelButtonDomain,
