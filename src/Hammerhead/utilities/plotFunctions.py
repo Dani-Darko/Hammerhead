@@ -217,18 +217,21 @@ def lossPlot(plotParams: dict[str, Union[float, bool]],
                  for entry in (["lossTrain"] if model[1:] == "GP" else ["lossTrain", "lossValid"])]  # Iterate over all types of loss, based on model suffix
                 for var in vars]                                                # Iterate over all model variables, loading all loss data in stateDictDir
     
-    fig, axs = plt.subplots(figsize=(5.4, 2 if model[0] == "L" else 6), ncols=2, nrows=int(len(vars)/2), sharex=True, squeeze=False)  # Create figure, subplots and size based on modelPrefix
+    fig, axs = plt.subplots(figsize=(5.4, 2 if model[0] == "L" else 6), ncols=2, nrows=int(len(vars)/2), sharex=True, sharey=True, squeeze=False)  # Create figure, subplots and size based on modelPrefix
     for ax, axData in zip(axs.flatten(), plotData):                             # Iterate over each axis (one axis per variable, ordered)
         ax.tick_params(axis='both', labelsize=6)                                # Modify the tick label size
         ax.set_yscale('log')                                                    # Set axis y-scale to logarithmic
         ax.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)            # Draw minor and major gridlines on both axis
         for entry, color, lineData in zip(["$\mathrm{Training\ set}$", "$\mathrm{Validation\ set}$"], ["m", "c"], axData):  # Iterate over all available types of loss
             ax.plot(lineData, c=color, lw=1, label=entry)                       # ... plotting one line per loss type in each axis
-    axs[0, 0].set_title("$f_f$" if model[0] == "L" else "$\mathrm{Inlet}$", fontsize=10)  # Set top left axis title based on model prefix
-    axs[0, 1].set_title("$f_h$" if model[0] == "L" else "$\mathrm{Outlet}$", fontsize=10)  # Set top right axis title based on model prefix
+    axs[0, 0].set_title("$f_\mathrm{f}$" if model[0] == "L" else "$\mathrm{Inlet}$", fontsize=10)  # Set top left axis title based on model prefix
+    axs[0, 1].set_title("$f_\mathrm{h}$" if model[0] == "L" else "$\mathrm{Outlet}$", fontsize=10)  # Set top right axis title based on model prefix
     for i, label in enumerate([""] if model[0] == "L" else ["$(p)$", "$(T)$", "$(v_{x})$"]):  # Iterate over number of axis rows
         axs[i, 0].set_ylabel("$\mathrm{J}\ $" + label, fontsize=10)             # ... for each row, set left axis y-label
+    for i in range(2):                                                          # For each column ...
+        axs[-1, i].set_xlabel("$\mathrm{Epoch}$", fontsize=10)                  # ... write the x-label on the bottom row
     axs[0, 1].legend(fontsize=6)                                                # Legend only in top right axis
+    plt.tight_layout()                                                          # Apply tight layout
     fig.savefig(plotDir / "lossPlot.pdf", bbox_inches='tight')                  # Save figure as PDF
     plt.close(fig)                                                              # Close figure, free up memory
 
