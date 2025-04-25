@@ -1,5 +1,5 @@
 gpytorch>=1.14
-matplotlib>=3.8.1
+matplotlib==3.8.2
 numpy>=1.26.1
 pyqt5>=5.15.10
 pyinstaller>=6.2.0

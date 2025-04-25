@@ -16,6 +16,7 @@
 # IMPORTS: Others #########################################################################################################################
 
 from matplotlib import cm, rc                                                   # Others -> Matplotlib formatting tools
+from matplotlib.ticker import FormatStrFormatter                                # Others -> Matplotlib ticker formatting
 from pathlib import Path                                                        # Others -> Path manipulation
 from typing import Optional, Union                                              # Others -> Python type hinting
 
@@ -138,21 +139,21 @@ def predictionPlot(xv: np.ndarray,
     
     fig = plt.figure()                                                          # Create a figure (this will contain a single 3D axis for plotting)
     ax = fig.add_subplot(projection="3d")                                       # Add an axis with a 3D projection to the figure
-    ax.scatter(*xExpanded.T, lumpedReal3D, c="k", label=f"$Re={Re},A_2={A2},k_2={k2}$")  # Plot the high fidelity data as black dots and set the fixed parameters label
+    ax.scatter(*xExpanded.T, lumpedReal3D, c="k", label=f"$\mathrm{{Re}}={Re},A_2={A2},k_2={k2}$")  # Plot the high fidelity data as black dots and set the fixed parameters label
     surf = ax.plot_surface(X, Y, Zpred, cmap=cm.jet, alpha=0.65, lw=0, antialiased=False)  # Plot the predicted lumped data as a surface with a colour gradient
-    bar = fig.colorbar(surf, ax=ax, extend="min", shrink=0.75)                  # Show a colourbar for the predicted lumped data surface colour gradient values
+    bar = fig.colorbar(surf, ax=ax, extend="min", shrink=0.75, format=FormatStrFormatter('%.2f'))  # Show a colourbar for the predicted lumped data surface colour gradient values
     if Zlims is not None:                                                       # If surfaces for limits also exist ...
         for Zlim in Zlims:                                                      # ... iterate over both upper and lower limits ...
             ax.plot_surface(X, Y, Zlim, color="k", alpha=0.2, lw=0, antialiased=False)  # ... plot a surface for both limits
     
-    bar.set_label(r'$\dot{Q}$', rotation=0, fontsize=14)                        # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
-    ax.set_xlabel("$\mathrm{A}_1$")                                                      # Set the x-axis label as A1
+    bar.set_label(r'$\overline{\dot{Q}}$', rotation=0, labelpad=10)             # Add a label to the colourbar (Q = Thermo-Hydraulic Performance final evaluation)
+    ax.set_xlabel("$A_1$")                                                      # Set the x-axis label as A1
     ax.set_ylabel("$k_1$")                                                      # Set the y-axis label as k1
     ax.tick_params(axis='both', labelsize=10)                                   # Modify the tick label size
     ax.legend()                                                                 # Add a legend, containing the fixed parameter values label
-    
+    plt.tight_layout()                                                          # Apply tight layout
     with open(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}.plot', "wb") as plotFile:     # Open pickle file for binary writing ...
-        pickle.dump(fig, plotFile)                                              # ... store matploltib figure object
+        pickle.dump(fig, plotFile)                                              # ... store matplotlib figure object
     plt.close(fig)                                                              # Close the figure and free up resources
 
 def varPlot(plotParams: dict[str, Union[float, bool]],
