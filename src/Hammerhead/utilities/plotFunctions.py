@@ -75,16 +75,18 @@ def predictionPlot(xv: np.ndarray,
     baselineIdx = torch.all(xExpanded == torch.zeros(xExpanded.shape[1]), axis=1)  # Get the row index where all A1, A2, k1, k2 = 0 to use as a baseline value
     lumpedBaseline = lumpedDataExpanded["lumpedT"][baselineIdx] - lumpedDataExpanded["lumpedp"][baselineIdx]  # Calculate the Thermo-Hydraulic Performance of the baseline case (A1=0, k1=0)    
     lumpedReal = (lumpedDataExpanded["lumpedT"] - lumpedDataExpanded["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data for the 3D plot, normalised against the baseline case
-    lumpedPred = lumpedPred / lumpedBaseline                                    # Normalise predicted qualitative THP against the baseline case for 3D plot
-    lumpedLimits2D = None if lumpedLimits2D is None else [limit / lumpedBaseline for limit in lumpedLimits2D]  # Also normalise both qualitative limits if they exist
+    lumpedRealSortIdx = torch.argsort(lumpedReal, dim=0)[:, 0]                  # Get indices of sorted lumpedReal tensor (use these to sort all corresponding tensors)
+    lumpedReal = lumpedReal[lumpedRealSortIdx]                                  # Sort lumpedRead tensor (all other tensors are sorted at computation time)
+    lumpedPred = (lumpedPred / lumpedBaseline)[lumpedRealSortIdx]               # Normalise predicted qualitative THP against the baseline case for 3D plot
+    lumpedLimits2D = None if lumpedLimits2D is None else [limit[lumpedRealSortIdx] / lumpedBaseline for limit in lumpedLimits2D]  # Also normalise both qualitative limits if they exist
 
     _mplPreamble(plotParams)                                                    # Execute matplotlib formatting preamble code
     
     # 2D (quantitative) prediction plot:
     
     fig, axs = plt.subplots(figsize=(5.4, 2), ncols=2, width_ratios=[1, 0.2])   # Create a new 2D figure (default = (6.4, 4.8)) with 2 cols: prediction (left) and error (right)
-    points_num = min(80, len(lumpedReal))                                       # Select a maximum amount of points to show in the quantitative plot, no more than 60
-    pointsIdx = np.random.choice(np.arange(len(lumpedReal)), size=points_num)   # Take a random selection of the THP array to show in the quantitative plot
+    points_num = min(100, len(lumpedReal))                                      # Select a maximum amount of points to show in the quantitative plot, no more than 100
+    pointsIdx = np.linspace(0, len(lumpedReal)-1, points_num).astype(int)       # Take an ordered selection of the THP array to show in the quantitative plot
     x_lin = np.arange(points_num)                                               # X-axis is a monotonically increasing sequence, one entry per predicted value
     y_mid = ((lumpedPred + lumpedReal) / 2)[pointsIdx, 0]                       # Y-midpoints between predicted and HFM values (for errorbar plot, actual points will not be visible)
     y_lims = None if lumpedLimits2D is None else [((limit + lumpedReal) / 2)[pointsIdx, 0] for limit in lumpedLimits2D]  # Limits for the GP to show around the predicted and HFM values
@@ -96,17 +98,17 @@ def predictionPlot(xv: np.ndarray,
     axs[0].plot(x_lin, lumpedPred[pointsIdx], "m", label=f"$\mathrm{{{stateDictDir.parts[pivotIdx + 3]}}}$ $\mathrm{{prediction}}$", marker=".", linewidth=0, markersize=2)  # Plot predicted values as a line plot
     axs[0].plot(x_lin, lumpedReal[pointsIdx], "k", label="$\mathrm{HFM}$ $\mathrm{data}$", marker="x", linewidth=0, markersize=2)  # Plot HFM values as black crosses
     axs[0].set_xticks([], [])                                                   # Disable x-axis ticks, as the x-axis is meaningless
-    axs[0].set_xlabel("$\mathrm{Cases\ (random\ sample)}$", fontsize=10)        # Set x-label
-    axs[0].set_ylabel(r'$\dot{Q}$', fontsize=10)                                # Set y-label
+    axs[0].set_xlabel(("$\mathrm{Subset\ of\ cases}$" if points_num < len(lumpedReal) else "$\mathrm{Cases}$")+"$\mathrm{\ (in\ ascending\ HFM\ }\overline{\dot{Q}})$", fontsize=10)  # Set x-label (depending on number of points)
+    axs[0].set_ylabel(r'$\overline{\dot{Q}}$', fontsize=10)                     # Set y-label
     axs[0].tick_params(axis='both', labelsize=6)                                # Adjust tick label font size
     axs[0].grid(axis="y", alpha=0.5, linewidth=0.1)                             # Draw y-axis gridlines
-    axs[0].legend(fontsize=6, loc="upper left")                                 # Finally, draw legend
+    axs[0].legend(fontsize=6, loc="lower right")                                # Finally, draw legend
 
     y_err = (np.abs(lumpedPred - lumpedReal) / np.abs(lumpedReal))[:, 0]        # Y relative errors between predicted and HFM values
     axs[1].plot(y_err, "m.", markersize=1, alpha=0.25)                          # Plot Y relative errors
     axs[1].set_xticks([], [])                                                   # Disable x-axis ticks, as the x-axis is meaningless
     axs[1].set_yscale('log')                                                    # Set the y-axis scale as log
-    axs[1].set_ylabel('$\mathrm{Relative}$ $\mathrm{Error}$', fontsize=10)      # Set y-label
+    axs[1].set_ylabel('$\mathrm{Relative\ error}$', fontsize=10)                # Set y-label
     axs[1].tick_params(axis='both', labelsize=6)                                # Adjust tick label font size
     axs[1].yaxis.tick_right()                                                   # Move y-axis ticks to the right 
     axs[1].yaxis.set_label_position("right")                                    # Move y-axis label to the right
