@@ -324,9 +324,9 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
                     # Plot mean losses at each x-point, where x-values are just ordered integers (will be labelled separately), ensuring even separation of x-points
                     ax.plot(range(1, len(xData)+1), lossMean[sortedIdx], label=f"$\mathrm{{layers}} = \mathrm{{{line}}}$" if modelSuffix == "NN" else "$\mathrm{Kernel}$", marker=marker, markersize=2, color=colour, linestyle="-", linewidth=1)
                     # For each x-point and line, also plot a violin plot that illustrates the distribution of losses (assuming multiple samples per point)
-                    violingParts = ax.violinplot(losses[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=0.9)  # Plot violin plot, showing minima, maxima, means and the data distribution)
-                    _updateViolinColours(violingParts, colour)                  # Update colour of violin plot so it matches the current colourmap
-                    ax.set_xticks(range(1, len(xData)+1), xData[sortedIdx])     # Set x-ticks based on previously sorted x data labels
+                    violinParts = ax.violinplot(losses[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=0.9)  # Plot violin plot, showing minima, maxima, means and the data distribution)
+                    _updateViolinColours(violinParts, colour)                   # Update colour of violin plot so it matches the current colourmap
+                    ax.set_xticks(range(1, len(xData)+1), [tick.lstrip("0") for tick in xData[sortedIdx]])  # Set x-ticks based on previously sorted x data labels (remove leading zeros)
                     ax.tick_params(axis='both', labelsize=6)                    # Modify tick label size
                     ax.set_yscale('log')                                        # As this plot shows loss, y-axis should be logarithmic
                     ax.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)  # Draw gridlines on both axes
@@ -335,11 +335,12 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
             for row, lbl in enumerate([""] if modelPrefix == "L" else ["(p)", "(T)", "(v_{{x}})"]):
                 axs[row, 0].set_ylabel(f"$\mathrm{{J}}{{{lbl}}}$", fontsize=8)
             # Based on model prefix, also draw column labels (upper row titles) and x-axis label (bottom row only)
-            for col, lbl in enumerate(["$f_f$", "$f_h$"] if modelPrefix == "L" else ["$\mathrm{Inlet}$", "$\mathrm{Outlet}$"]):
+            for col, lbl in enumerate(["$f_\mathrm{f}$", "$f_\mathrm{h}$"] if modelPrefix == "L" else ["$\mathrm{Inlet}$", "$\mathrm{Outlet}$"]):
                 axs[0, col].set_title(lbl, fontsize=10) 
                 axs[-1, col].set_xlabel("$\mathrm{Validation\ split}$" if xVarLabel == "valSplit" else ("$\mathrm{Neurons}$" if xVarLabel == "neurons" else "$\mathrm{Kernel}$"))
                 
             axs[0, -1].legend(fontsize=6)                                       # Legend in top right axis only
+            plt.tight_layout()                                                  # Apply tight layout
             fig.savefig(plotDir / f"mlBenchmark_{freeVarLabel}={freeVar}_x={xVarLabel}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
             plt.close(fig)                                                      # Close the figure and free up resources
             
