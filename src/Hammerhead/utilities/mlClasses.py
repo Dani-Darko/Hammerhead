@@ -90,7 +90,7 @@ class Kriging(gpytorch.models.ExactGP):
         """
         super().__init__(xTrain, yTrain, likelihood)
         self.mean = gpytorch.means.ConstantMean()                               # Construct function that computes the distribution's mean for each step
-        self.covar = gpytorch.kernels.ScaleKernel(kernel(nu=0.5))               # Construct function that computes the distribution's covariance matrix for each step
+        self.covar = gpytorch.kernels.ScaleKernel(kernel(nu=0.5) + gpytorch.kernels.ConstantKernel())  # Construct function that computes the distribution's covariance matrix for each step
         # Note: nu=0.5 as the default value if MaternKernel is used
         
     def forward(self, x: torch.tensor) -> gpytorch.distributions.MultivariateNormal:

@@ -144,8 +144,9 @@ def GP(modelName: str,
     trainingData = torch.load(stateDictDir / f"{varName}.pt", weights_only=False)  # Load the dictionary of model parameters and training data
     xTrain, outputTrain = trainingData["xTrain"], trainingData["outputTrain"]   # Load the features and output that the model was trained with from the file
     kernel = getattr(gpytorch.kernels, (stateDictDir.name.split("_"))[3])       # Infer the kernel the model was trained with from the directory name
-    
-    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood(noise=torch.tensor(1e-7)) for _ in range(dimensionSize)]  # GPyTorch works with a single output, a list of likelihoods is produced for a multi-output model
+
+    noiseTensor = torch.ones([xTrain.shape[0]]) * 1e-4                          # Target "noise" error for the kernel (this will guide GP to try and reach this level of error for the mean prediction)
+    likelihoodPrev = [gpytorch.likelihoods.FixedNoiseGaussianLikelihood(noise=noiseTensor) for _ in range(dimensionSize)]  # GPyTorch works with a single output, a list of likelihoods is produced for a multi-output model
     modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], kernel, featureSize, dimensionSize) for i in range(dimensionSize)]  # GPyTorch works with a single output, a list of models is produced for a multi-output model
     modelLikelihood = [independentModel.likelihood for independentModel in modelPrev]  # Link each output point likelihood function to an output point model
     

@@ -126,7 +126,6 @@ def GP(featureSize: int,
        varName: str,
        outputDir: Path,
        epochs: int = int(7e3),
-       lossTarget: float = 1e-4,
        **kwargs) -> None:
     """
     Gaussian Process (GP) training process
@@ -141,28 +140,28 @@ def GP(featureSize: int,
     varName : str                       Variable name (used for labelling stored training data)
     outputDir : str                     Trained data output (storage) directory
     epochs : int                        Number of training iterations
-    lossTarget : float                  Loss target to terminate training
 
     Returns
     -------
     None
     """
-    likelihoodPrev = [gpytorch.likelihoods.GaussianLikelihood(noise=torch.tensor(1e-7)) for _ in range(dimensionSize)]  # Gpytorch trains for a single output, a list of likelihoods is produced for a multi-output model
+    noiseTensor = torch.ones([xTrain.shape[0]]) * 1e-4                          # Target "noise" error for the kernel (this will guide GP to try and reach this level of error for the mean prediction)
+    likelihoodPrev = [gpytorch.likelihoods.FixedNoiseGaussianLikelihood(noise=noiseTensor) for _ in range(dimensionSize)]  # Gpytorch trains for a single output, a list of likelihoods is produced for a multi-output model
     modelPrev = [Kriging(xTrain, outputTrain[:, i], likelihoodPrev[i], kernel, featureSize, dimensionSize) for i in range(dimensionSize)]  # Gpytorch trains for a single output, a list of models is produced for a multi-output model
     modelLikelihood = [independentModel.likelihood for independentModel in modelPrev]  # Link each output point likelihood function to an output point model
     
     model = gpytorch.models.IndependentModelList(*modelPrev)                    # Create a Gaussian Process model from modelPrev (list of sub-models)
-    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood).train()  # Create likelihood object from list of previously created list of likelyhoods 
+    likelihood = gpytorch.likelihoods.LikelihoodList(*modelLikelihood).train()  # Create likelihood object from list of previously created list of likelihoods
     
     model.train()                                                               # Initialize the training process for the model
     likelihood.train()                                                          # Initialize the training process for the likelihood
     
-    optimizer = torch.optim.Adam(model.parameters(), lr=1)                      # Object to hold and update hyperparameter state of the model throughout training
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)                   # Object to hold and update hyperparameter state of the model throughout training
     mll = gpytorch.mlls.SumMarginalLogLikelihood(likelihood, model)             # Loss function utilising marginal log-likelihood (MLL)
     
     lossTrainList = []                                                          # History of all computed losses during training
     epoch = 0                                                                   # Track number of elapsed epochs
-    with gpytorch.settings.lazily_evaluate_kernels(state=False), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False):
+    with gpytorch.settings.lazily_evaluate_kernels(state=False), gpytorch.settings.fast_computations(covar_root_decomposition=False, log_prob=False, solves=False):
         while epoch < epochs:                                                   # Start the training (for a maximum of specified epochs)
             epoch += 1                                                          # Starting a new epoch, increment counter
             optimizer.zero_grad()                                               # Reset the gradient for the backpropagation
@@ -173,8 +172,6 @@ def GP(featureSize: int,
             loss.backward()                                                     # Compute the gradient on the training prediction
             optimizer.step()                                                    # Hyperparameter update from the computed gradient
             lossTrainList.append(max(mseTrain).item())                          # Store the loss from training error
-            if model.likelihood.likelihoods[0].noise < lossTarget:              # If loss target has been reached ...
-                break                                                           # ... stop the training process
     
     outputDir.mkdir(parents=True, exist_ok=True)                                # Create this directory if it does not yet exist
     torch.save({'epoch': epoch,
