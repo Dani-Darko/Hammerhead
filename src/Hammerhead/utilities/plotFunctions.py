@@ -161,7 +161,7 @@ def varPlot(plotParams: dict[str, Union[float, bool]],
             profileDictFileSM: Path) -> None:
     """
     Flow variable profile plot 
-    
+
     Parameters
     ----------
     plotParams : dict               Dictionary of plotting parameters
@@ -172,27 +172,33 @@ def varPlot(plotParams: dict[str, Union[float, bool]],
     -------
     None
     """
-    pivotIdx, plotDir = _getPlotDir(profileDictFileSM.parent)                   # Create and get path to plot directory
-    _mplPreamble(plotParams)                                                    # Execute matplotlib formatting preamble code
-    
-    dataHFM, dataSM = torch.load(profileDictFileHFM, weights_only=True), torch.load(profileDictFileSM, weights_only=True)  # Load data from HFM and SM tensors    
-    fig, axs = plt.subplots(figsize=(5.4, 6), ncols=2, nrows=3, sharex="col", sharey="row")  # Create figure and 3x2 subplots
-    for row, var in enumerate(["$p\ \mathrm{[kPa]}$", "$v_x\ \mathrm{[ms^{-1}]}$", "$T\ \mathrm{[K]}$"]):  # Iterate over all rows, and their corresponding y-axis labels
-        axs[row, 0].set_ylabel(var)                                             # For each row, set y-axis label in the leftmost column
-        for col, data in enumerate([dataHFM, dataSM]):                          # Also iterate over all columns, and the respective datasets
-            axs[row, col].tick_params(axis='both', labelsize=6)                 # Modify the tick label size for each ax
-            axs[row, col].grid(which="both", axis="both", alpha=0.5, linewidth=0.1)  # Draw minor and major gridlines on both axis for each ax
-            for key, lbl, c in zip(["profileBaseline",     "profileOptimised"],  # Iterate over data keys, and the corresponding line labels and colours
-                                   ["$\mathrm{Baseline}$", "$\mathrm{Maximum\ THP}$"],
-                                   ["teal",                "crimson"]):
-                axs[row, col].plot(data[key][row], c=c, ls="-", lw=1, label=lbl)  # Plot two lines for each ax
+    pivotIdx, plotDir = _getPlotDir(profileDictFileSM.parent)  # Create and get path to plot directory
+    _mplPreamble(plotParams)  # Execute matplotlib formatting preamble code
 
-    axs[0, 0].set_title("$\mathrm{HFM}$", fontsize=10)                          # Set top left axis title
-    axs[0, 1].set_title("$\mathrm{SM}$", fontsize=10)                           # Set top right axis title
-    axs[0, 1].legend(fontsize=6)                                                # Legend only in top right axis
-    fig.savefig(plotDir / "varPlot.pdf", bbox_inches='tight')                   # Save figure as PDF
-    plt.close(fig)                                                              # Close figure, free up memory
+    for dictFile, plotSuffix in zip([profileDictFileSM, profileDictFileHFM], ["SM", "HFM"]):  # Two plots are created (identical but from each of the two SM and HFM datasets):
+        dataBaseline  = torch.load(dictFile, weights_only=False)["profileBaseline"]  # Load data from HFM and SM tensors
+        dataOptimised = torch.load(dictFile, weights_only=False)["profileOptimised"]  # Load data from HFM and SM tensors
 
+        fig, axs = plt.subplots(figsize=(5.4, 6), ncols=2, nrows=3, sharex="col")  # Create figure and 3x2 subplots
+        for row, var in enumerate(["$p\ \mathrm{[Pa]}$", "$v_x\ \mathrm{[ms^{-1}]}$", "$T\ \mathrm{[K]}$"]):  # Iterate over all rows, and their corresponding y-axis labels
+            axs[row, 1].yaxis.set_label_position("right")                       # For each row on the right column, set label position on the right ...
+            axs[row, 1].yaxis.tick_right()                                      # ... as well as tick positions
+            for col, idxList in enumerate([[2, 0, 1], [5, 3, 4]]):              # Also iterate over all columns, and the respective dataset indices
+                axs[row, col].set_ylabel(var)                                   # Draw y-label on each plot (left column on left, right column on right)
+                axs[row, col].tick_params(axis='both', labelsize=6)             # Modify the tick label size for each ax
+                axs[row, col].grid(which="both", axis="both", alpha=0.5, linewidth=0.1)  # Draw minor and major gridlines on both axis for each ax
+                for data, lbl, c in zip([dataBaseline, dataOptimised],          # Iterate over datasets, and the corresponding line labels and colours
+                                        ["$\mathrm{Baseline}$", "$\mathrm{Maximum\ THP}$"],
+                                        ["teal", "crimson"]):
+                    axs[row, col].plot(np.arange(0, 0.2, 0.2 / len(data[idxList[row]])), data[idxList[row]], c=c, ls="-", lw=1, label=lbl)  # Plot two lines for each ax (data index based on row)
+
+        for col, title in enumerate(["Inlet", "Outlet"]):                       # For each column
+            axs[0, col].set_title(f"$\mathrm{{{title}}}$", fontsize=10)         # ... draw titles on top row
+            axs[-1, col].set_xlabel("$\mathrm{Pipe\ radius\ [r]}$", fontsize=6)  # ... draw x-axis labels on bottom row
+        fig.legend(*axs[0, 0].get_legend_handles_labels(), loc='outside lower center', ncol=2, fontsize=6, borderaxespad=0.1)  # Legend (from any axis) drawn outside at the bottom of the figure
+        plt.tight_layout()                                                      # Apply tight layout
+        fig.savefig(plotDir / f"varPlot_{plotSuffix}.pdf", bbox_inches='tight')  # Save figure as PDF
+        plt.close(fig)                                                          # Close figure, free up memory
 
 def lossPlot(plotParams: dict[str, Union[float, bool]],
              stateDictDir: Path) -> None:

@@ -235,8 +235,8 @@ def computeAllTensors(tensorParentDir: Path, tensorDirStem: str, caseDirList: li
         for tensorName, tensorGroup in zip(lumpedTensorNames, lumpedTensors):   # Iterate over all lumped-related tensors and their file names, (grouped by expanded, standardised, mean and std tensors)
             torch.save({name: tensor for name, tensor in zip(["lumpedT", "lumpedp"], tensorGroup)}, tensorDir / tensorName)  # Store data from each group in a dictionary, where the keys are lumpedT or lumpedp
             
-        torch.save({'profileBaseline': [bcvAndSvd[key][0][baselineCaseMask][0] for key in ["inletp", "outletU", "outletT"]],
-                    'profileOptimised': [bcvAndSvd[key][0][maxTHPCaseMask][0] for key in ["inletp", "outletU", "outletT"]]},
+        torch.save({'profileBaseline': [bcvAndSvd[key][0][baselineCaseMask][0] for key in ["inletp", "inletU", "inletT", "outletp", "outletU", "outletT"]],  # keys represent order of entries as expected by plotting routine
+                    'profileOptimised': [bcvAndSvd[key][0][maxTHPCaseMask][0] for key in ["inletp", "inletU", "inletT", "outletp", "outletU", "outletT"]]},
                     tensorDir / "variableProfiles.pt")                          # Store data for plotting variable profiles, comparing baseline vs max cases
         
 def computeBCVandSVD(bcvNames: list[str], caseDirList: list[Path], modes: int, postProcessingDir: str = "postProcessing/sample/Helium/6000/") -> dict[str, list[torch.tensor]]:

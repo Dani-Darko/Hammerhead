@@ -268,8 +268,8 @@ def maximiseTHP(modelName: str,
     
     torch.save({'xPredExpanded': xPredExpanded,
                 'thpHistory': thpHistory,
-                'profileBaseline': None if modelName[0] == "L" else [profileBaseline[0][i].squeeze() for i in [2, 3, 4]],  # (ignore upper and lower limits, just store list of variable tensors)
-                'profileOptimised': None if modelName[0] == "L" else [profileOptimised[0][i].squeeze() for i in [2, 3, 4]]},  # (select only: outletU [2], outletT [3], inletp [4])
+                'profileBaseline': None if modelName[0] == "L" else [entry.squeeze() for entry in profileBaseline[0]],  # (ignore upper and lower limits, just store list of variable tensors)
+                'profileOptimised': None if modelName[0] == "L" else [entry.squeeze() for entry in profileOptimised[0]]},  # (select only: outletU [2], outletT [3], inletp [4])
                 Path(stateDictDir) / "optimalSearchResults.pt")                 # Store optimal search results
                 
     _, Re, _, _, _, harmonics = tensorDir.stem.split("_")                       # Extract the Reynolds number and number of harmonics from the tensorDir name
