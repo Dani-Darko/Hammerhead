@@ -254,6 +254,7 @@ def maximiseTHP(modelName: str,
                                         args=(modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, True),  # Arguments for predictTHP function
                                         bounds = torch.stack((torch.zeros_like(xMin), torch.ones_like(xMax))).T,  # Bounds are the per-feature minima and maxima (0 and 1)
                                         callback=lambda intermediate_result: thpHistory.append(intermediate_result.fun),  # Callback to append intermediate minimisation results to thpHistory list
+                                        tol=1e-4,                               # Convergence relative tolerance
                                         polish=True)                            # Improve post-minimisation result
     xPredMax = torch.from_numpy(xObjective["x"]).float()                        # Convert the 1D numpy array (optimised shape features) to a 2D tensor
     xPredExpanded = denormaliseTensor(xPredMax, xMin, xMax)                     # ... and denormalise (expand) it

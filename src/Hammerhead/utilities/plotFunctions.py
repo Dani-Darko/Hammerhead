@@ -16,7 +16,7 @@
 # IMPORTS: Others #########################################################################################################################
 
 from matplotlib import cm, rc                                                   # Others -> Matplotlib formatting tools
-from matplotlib.ticker import FormatStrFormatter                                # Others -> Matplotlib ticker formatting
+from matplotlib.ticker import FormatStrFormatter, MaxNLocator                   # Others -> Matplotlib ticker formatting
 from pathlib import Path                                                        # Others -> Path manipulation
 from typing import Optional, Union                                              # Others -> Python type hinting
 
@@ -255,14 +255,32 @@ def historyPlot(plotParams: dict[str, Union[float, bool]],
     fig, ax = plt.subplots(figsize=(5.4, 2))                                    # Create new figure with single subplot
     try:
         thpHistory = torch.load(stateDictDir / "optimalSearchResults.pt", weights_only=False)["thpHistory"]  # Load THP history from stored tensor
-        ax.plot(thpHistory, c="m", label="$\dot{Q}$ history", linewidth=1, markersize=2)  # Plot training set loss
-        ax.set_xlabel("$\mathrm{Epoch}$", fontsize=10)                          # Set the x-axis label as epoch
+        xPredExpanded = torch.load(stateDictDir / "optimalSearchResults.pt", weights_only=False)["xPredExpanded"]  # Load maximised THP input features
+
+        match xPredExpanded.shape[0]:                                           # Formatting string depends on number of maximised features
+            case 3:                                                             # Case: A1, k1, Re
+                annotation = "$A_1 = {:.3f}$\n$k_1 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
+            case 4:                                                             # Case: A1, A2, k1, k2
+                annotation = r"\begin{{align*}}A_1 &= {:.3f}\\[-6pt] A_2 &= {:.3f}\\[-6pt] k_1 &= {:.0f}\\[-6pt] k_2 &= {:.0f}\end{{align*}}".format(*xPredExpanded)
+            case 5:                                                             # Case: A1, A2, k1, k2, Re
+                annotation = "$A_1 = {:.3f}$\n$A_2 = {:.3f}$\n$\ k_1 = {:.0f}$\n$\ k_2 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
+
+        ax.plot(np.abs(thpHistory), c="m", label="$\dot{Q}$ optimisation history", linewidth=1, markersize=2)  # Plot THP differential evolution history (inverted, as we are maximising)
+        ax.annotate(annotation,                                                 # Insert annotation of maximised THP parameters
+                    xy=(len(thpHistory)-1, np.abs(thpHistory[-1])), xycoords='data',  # Coordinates of where arrow points to (in data units)
+                    xytext=(0.662, 0.6), textcoords='axes fraction',            # Coordinates of text (in axis fractions)
+                    verticalalignment='center', horizontalalignment='left',     # Text alignment
+                    arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0.2", fc="w"),  # Arrow formatting
+                    bbox=dict(boxstyle="round", fc="w"))                        # Bounding box formatting
+        ax.set_xlabel("$\mathrm{Iterations}$", fontsize=10)                     # Set the x-axis label as number of iterations
         ax.set_ylabel("$\dot{Q}$", fontsize=10)                                 # Set the y-axis label as loss
         ax.tick_params(axis='both', labelsize=6)                                # Modify the tick label size
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))                   # Ensure x-axis only has ticks at integer locations
         ax.grid(axis="y", alpha=0.5, linewidth=0.1)                             # Draw gridlines on y-axis
-        ax.legend()                                                             # Add a legend, containing the fixed parameter values label
+        ax.legend(loc="lower right")                                            # Add a legend, containing the fixed parameter values label
+        plt.tight_layout()                                                      # Apply tight layout
         fig.savefig(plotDir / "thpHistory_optimalSearchResults.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         print(f"Cannot plot THP optimisation search history for {'/'.join(stateDictDir.parts[2:])}, ensure optimal search was performed!")
     finally:
         plt.close(fig)                                                          # Close the figure and free up resources
@@ -362,6 +380,7 @@ def _mplPreamble(plotParams: dict[str, Union[float, bool]]) -> None:
     """
     rc('font', **{'family': 'sans-serif', 'serif': ['Computer Modern Sans Serif']})  # Plot font settings to match default LaTeX style
     rc('text', usetex=plotParams["useTex"])                                     # Use TeX for rendering text if available and requested in plotParams.yaml
+    rc('text.latex', preamble=r'\usepackage{amsmath}')                          # Use amsmath LaTeX package for equation formatting
 
 ###############################################################################
 
