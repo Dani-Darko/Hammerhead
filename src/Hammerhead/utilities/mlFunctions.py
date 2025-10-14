@@ -15,7 +15,7 @@
 
 from utilities.dataProcessing import (genericPoolManager,                       # Utilities -> Generic function for managing multiprocessed task pools
                                       loadyaml,                                 # Utilities -> Configuration loading and manipulation from resources
-                                      normaliseTensor)                          # Utilities -> Normalising tensors
+                                      normaliseTensorRef)                       # Utilities -> Normalising tensors
 from utilities.mlPrediction import (predictTHP,                                 # Utilities -> Calculate THP from BCV predictions
                                     maximiseTHP)                                # Utilities -> Calculate optimal features using a torch optimiser
 from utilities.plotFunctions import (predictionPlot,                            # Utilities -> Plotting model predictions
@@ -357,12 +357,12 @@ def getPredPlotTasksSingleRe(plotTasks: list[str],
         if tensorDir.stem.startswith("Re_All"):                                 # If tensor directory starts with Re_All, it is a multi-Re scenario that won't be processed here
             tensorDirsReAll.append(tensorDir)                                   # ... add it to a list that will be passed to the corresponding multi-Re function
             continue                                                            # ... and move on to the next tensor directory
-            
+        
         VTReduced = torch.load(tensorDir / "VTReduced.pt", weights_only=True)   # Each boundary condition variable has its own set of modes, and therefore its own set of left eigenvectors, load the corresponding dictionary of tensors
         xData = torch.load(tensorDir / "xData.pt", weights_only=True)           # Load the xData dictionary of tensors
         x, xMin, xMax = xData["x"], xData["xMin"], xData["xMax"]                # Extract the min and max values of the denormalised xData, as well as the normalised xData
         xPredExpanded = torch.from_numpy(xPredExpandedArray1H if int(tensorDir.stem.split("_")[-1]) == 1 else xPredExpandedArray2H)  # Deduce the number of harmonics from the current tensorDir name, and convert the corresponding array to a tensor
-        xPred, _, _ = normaliseTensor(xPredExpanded)                            # The models are trained with normalised data, so the features need to be normalised with the stored min and max values
+        xPred, _, _ = normaliseTensorRef(xPredExpanded, xMin, xMax)             # The models are trained with normalised data, so the features need to be normalised with the stored min and max values
         
         for modelName in plotTasks:                                             # Iterate over all tasks specified in --plot
             for stateDictDir in [path for path in (tensorDir / modelName).glob("*") if path.is_dir()]:  # Also iterate over all architecture-relevant state dictionary subdirectories
@@ -412,7 +412,7 @@ def getPredPlotTasksMultiRe(plotTasks: list[str],
                     
                     for Re in uniqueRe:                                         # Iterate over all unique Re values (from the last column of the original xExpanded tensor)
                         xPredExpanded = torch.from_numpy(np.insert(xPredExpandedArray, xPredExpandedArray.shape[1], Re, axis=1))  # Insert the current Re value as the last column of the xPredExpanded array and convert it to a tensor
-                        xPredQual, _, _ = normaliseTensor(xPredExpanded)        # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
+                        xPredQual, _, _ = normaliseTensorRef(xPredExpanded, xMin, xMax)  # The models are trained with normalised data, so the features need to be normalised with the stored mean and standard deviation values
                         xPredQuant = x[xData["xExpanded"][:, -1] == Re]         # Feature values for current Re to predict THP against corresponding HFM data
                         predictedTHPQual = predictTHP(xPredQual, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Call the model's corresponding THP prediction function, passing it the collected arguments (for 3D qualitative plot)
                         predictedTHPQuant = predictTHP(xPredQuant, modelName, modelPrefix[ modelName[0] ], dataMin, dataMax, stateDictDirReAll, VTReduced)  # Also carry out prediction for the 2D quantitative plots
@@ -441,7 +441,7 @@ def getVarPlotTaskArgs(plotTasks: list[str],
     -------
     varPlotTaskArgs : list              List of per-task var plot function arguments
     """
-    varPlotTaskArgs = []            
+    varPlotTaskArgs = []
     plotTasks = [plotTask for plotTask in plotTasks if plotTask[0] != "L"]      # Subset of requested and possible plot tasks, which represents the models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing variable profile plot data"):  # Iterate over all available tensor directories
         if (tensorDir / "variableProfiles.pt").is_file():                       # If outer variable profiles (HFM) tensor does not exist, ignore this tensor dir
@@ -469,7 +469,6 @@ def getLossPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs : list             List of per-task loss plot function arguments
     """
     lossPlotTaskArgs = []
-    plotTasks = [plotTask for plotTask in plotTasks if plotTask[1:] in ["NN", "GP"]]  # Subset of requested and possible plot tasks, which represents the models for which loss can and will be plotted
     for tensorDir in tqdm(tensorDirs, desc="Preparing loss plot data"):         # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
@@ -498,18 +497,19 @@ def getBenchmarkPlotTaskArgs(plotTasks: list[str],
     lossPlotTaskArgs = []
     for tensorDir in tqdm(tensorDirs, desc="Preparing ML benchmark plot data"):  # Iterate over all available tensor directories
         for plotTask in plotTasks:                                              # Iterate over all requested and available NN plot tasks
-        
+            
             lossTable = {}
             for stateDictDir in (tensorDir / plotTask).glob("*"):               # Iterate also over all available subdirectories in each tensor directory (containing state dict directories)
-                if stateDictDir.is_dir():                                       # If the state dict path is a valid directory
-                                       
+                if stateDictDir.is_dir():                                       # If the state dict path is a valid directory          
+                    
                     if plotTask[1:] == "NN":                                    # If current plotTask is a Neural Network, the lossTable key has to be formatted differently from other tasks
                         _, valSplit, _, layers, _, neurons, _, _ = stateDictDir.name.split("_")  # Extract validation split, layers and neurons from state dict path name
                         keyEntries = [valSplit, layers, neurons]                # First entries in lossTable key will be all extracted variables
+                    
                     else:                                                       # Key layout of lossTable for GP and RBF
                         _, valSplit, _, kernels, _, _ = stateDictDir.name.split("_")  # Extract validation split and kernels from state dict path name
                         keyEntries = [valSplit, kernels]                        # First entries in lossTable key will be all extracted variables
-                        
+                       
                     for varStateDict in stateDictDir.glob("*.pt"):              # For each variable inside the state dict folder
                         if varStateDict.name == "optimalSearchResults.pt": 
                             continue

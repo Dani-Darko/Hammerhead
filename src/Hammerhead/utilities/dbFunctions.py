@@ -113,7 +113,7 @@ def computeUniqueCases(hfmParams: dict[str, float]) -> tuple[np.ndarray, list[li
                                            hfmParams[f"{param}_max"],           # ... by the minimum and maximum values (and the total number of samples in that range) defined in hfmParams.yaml
                                            hfmParams[f"{param}_num"],           # ... in order to populate the test parameter space with all available parameter combinations
                                            endpoint=True),                      # Both the minimum and maximum values are included in the array [min, max] 
-                               decimals = 3)                                    # Round all values in all arrays to three decimal places
+                               decimals = 5)                                    # Round all values in all arrays to five decimal places
                       for param in ["A1", "A2", "k1", "k2", "Re"]]
     Re = Re.astype(int)                                                         # Restrict all Reynolds numbers to be integers only (all requested floats will be rounded down)
     print("Computed HFM parameter ranges from ./resources/hfmParams.yaml configuration file:")
@@ -161,9 +161,14 @@ def computeYCoords(xArray: np.ndarray, A1: float, A2: float, k1: float, k2: floa
     -------
     yArray : array-like                 Y-coordinates for shape parametrisation
     """
-    return (  (-A1 * np.cos(xArray * k1 * np.pi))
-            + (-A2 * np.cos(xArray * k2 * np.pi))
-            + A1 + A2 + r)
+    yCoords =  (  (-A1 * np.cos(xArray * k1 * np.pi))
+               + (-A2 * np.cos(xArray * k2 * np.pi))
+               + A1 + A2 + r)
+    for idx in range(1,len(xArray)):                                            # To avoid breaks in the mesh from rough surface to smooth surface ...
+        if yCoords[-idx] == 0.2:                                                # ... Look for the last valley in the rough surface that reaches pipe radius values ...
+            yCoords[-idx:] == 0.2                                               # ... and start the smooth section from this valley
+            break
+    return yCoords
 
 def dbTaskManager(xArray: np.ndarray, uniqueCases: list[list[np.ndarray, list[float]]], hfmParams: dict[str, float], nProc: int, openfoam: str, taskUpdateSecs: int = 2) -> None:
     """

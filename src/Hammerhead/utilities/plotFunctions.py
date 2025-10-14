@@ -54,6 +54,7 @@ def predictionPlot(xv: np.ndarray,
     -------
     None
     """
+    
     pivotIdx, plotDir = _getPlotDir(stateDictDir)                               # Create and get path to plot directory
     tensorDir = Path(*stateDictDir.parts[:pivotIdx + 3])                        # Reconstruct outer tensorDir from state dict path
     
@@ -83,6 +84,14 @@ def predictionPlot(xv: np.ndarray,
 
     _mplPreamble(plotParams)                                                    # Execute matplotlib formatting preamble code
     
+    match stateDictDir.parts[pivotIdx + 3][0]:
+        case "L":
+            Nx = "{{\dot{{ Q }}}}"
+        case "S":
+            Nx = "{{\mathit{{ \Gamma }}_f}}"
+        case "M":
+            Nx = "{{\mathbf{{ P }}}}"
+
     # 2D (quantitative) prediction plot:
     
     fig, axs = plt.subplots(figsize=(5.4, 2), ncols=2, width_ratios=[1, 0.2])   # Create a new 2D figure (default = (6.4, 4.8)) with 2 cols: prediction (left) and error (right)
@@ -109,7 +118,8 @@ def predictionPlot(xv: np.ndarray,
     axs[1].plot(y_err, "m.", markersize=1, alpha=0.25)                          # Plot Y relative errors
     axs[1].set_xticks([], [])                                                   # Disable x-axis ticks, as the x-axis is meaningless
     axs[1].set_yscale('log')                                                    # Set the y-axis scale as log
-    axs[1].set_ylabel('$\mathrm{Relative\ error}$', fontsize=10)                # Set y-label
+    axs[1].set_ylabel(f'$\mathrm{{Er}} ( \mathbf{{ y }}_{xExpanded.shape[1]}^{Nx} ),\, Re={Re}$', fontsize=10)  # Set y-label
+    axs[1].set_xlabel("$\mathrm{Total\ dataset}$", fontsize=8)
     axs[1].tick_params(axis='both', labelsize=6)                                # Adjust tick label font size
     axs[1].yaxis.tick_right()                                                   # Move y-axis ticks to the right 
     axs[1].yaxis.set_label_position("right")                                    # Move y-axis label to the right
@@ -130,12 +140,10 @@ def predictionPlot(xv: np.ndarray,
     lumpedLimits3D = None if predictedTHPQual[1] is None else [limit / lumpedBaseline for limit in predictedTHPQual[1:]]  # Extract normalised limits (only for GP, no limits otherwise)
     lumpedPred3D = predictedTHPQual[0] / lumpedBaseline                         # Extract THP data from list of predicted qualitative data for convenience (for 3D plot)            
     lumpedReal3D = (lumpedDataExpanded["lumpedT"] - lumpedDataExpanded["lumpedp"]) / lumpedBaseline  # Calculate the Thermo-Hydraulic Performance of the high-fidelity data for the 3D plot, normalised against the baseline case
-
+    
     X, Y = np.meshgrid(xv, yv)                                                  # Transform the x, y values into a set of coordinates for a surface plot
     Zpred = lumpedPred3D.reshape(len(xv), len(yv)).T                            # Reshape lumpedPred to match the X, Y grid shape
     Zlims = None if lumpedLimits3D is None else [limit.reshape(len(xv), len(yv)).T for limit in lumpedLimits3D]  # If limits exist, also reshape them to same shape as ZPred
-    
-    
     
     fig = plt.figure()                                                          # Create a figure (this will contain a single 3D axis for plotting)
     ax = fig.add_subplot(projection="3d")                                       # Add an axis with a 3D projection to the figure
@@ -152,8 +160,10 @@ def predictionPlot(xv: np.ndarray,
     ax.tick_params(axis='both', labelsize=10)                                   # Modify the tick label size
     ax.legend()                                                                 # Add a legend, containing the fixed parameter values label
     plt.tight_layout()                                                          # Apply tight layout
+    ax.view_init(elev=30, azim=5)
     with open(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}.plot', "wb") as plotFile:     # Open pickle file for binary writing ...
         pickle.dump(fig, plotFile)                                              # ... store matplotlib figure object
+    fig.savefig(plotDir / f'Re_{Re}_A2_{A2}_k2_{k2}_3D.png', bbox_inches='tight', dpi=600, format='png')  # Save the generated figure as a hih-qualit png
     plt.close(fig)                                                              # Close the figure and free up resources
 
 def varPlot(plotParams: dict[str, Union[float, bool]],
@@ -178,8 +188,20 @@ def varPlot(plotParams: dict[str, Union[float, bool]],
     for dictFile, plotSuffix in zip([profileDictFileSM, profileDictFileHFM], ["SM", "HFM"]):  # Two plots are created (identical but from each of the two SM and HFM datasets):
         dataBaseline  = torch.load(dictFile, weights_only=False)["profileBaseline"]  # Load data from HFM and SM tensors
         dataOptimised = torch.load(dictFile, weights_only=False)["profileOptimised"]  # Load data from HFM and SM tensors
-
+        xPredExpanded = torch.load(dictFile, weights_only=False)["xPredExpanded"]
+        
+        thpMax = -torch.load(dictFile, weights_only=False)["thpHistory"][-1]      # Load THP maximum data from HFM and SM tensors
+        thpB = torch.load(dictFile, weights_only=False)["thpBaseline"]            # Load THP baseline data from HFM and SM tensors
+        thpNormMax = thpMax/thpB
+        
+        Re = int(dictFile.parents[2].stem.split("_")[1])
+        
+        titleText = "$Re = {:.0f},\ \overline{{\dot{{Q}}}}={:.4f}$".format(Re,torch.squeeze(thpNormMax))
+        maxTHPLegend = """$\mathrm{{A}}_1={:.4f}\ \mathrm{{[m]}}\ \mathrm{{A}}_2={:.4f}\ \mathrm{{[m]}}\
+                           \mathrm{{k}}_1={:.0f}\ \mathrm{{[m^{{-1}}]}}\ \mathrm{{k}}_2={:.0f}\ \mathrm{{[m^{{-1}}]}}$""".format(*xPredExpanded)
+        
         fig, axs = plt.subplots(figsize=(5.4, 6), ncols=2, nrows=3, sharex="col")  # Create figure and 3x2 subplots
+        fig.suptitle(titleText, fontsize=12)
         for row, var in enumerate(["$p\ \mathrm{[Pa]}$", "$v_x\ \mathrm{[ms^{-1}]}$", "$T\ \mathrm{[K]}$"]):  # Iterate over all rows, and their corresponding y-axis labels
             axs[row, 1].yaxis.set_label_position("right")                       # For each row on the right column, set label position on the right ...
             axs[row, 1].yaxis.tick_right()                                      # ... as well as tick positions
@@ -188,13 +210,13 @@ def varPlot(plotParams: dict[str, Union[float, bool]],
                 axs[row, col].tick_params(axis='both', labelsize=6)             # Modify the tick label size for each ax
                 axs[row, col].grid(which="both", axis="both", alpha=0.5, linewidth=0.1)  # Draw minor and major gridlines on both axis for each ax
                 for data, lbl, c in zip([dataBaseline, dataOptimised],          # Iterate over datasets, and the corresponding line labels and colours
-                                        ["$\mathrm{Baseline}$", "$\mathrm{Maximum\ THP}$"],
+                                        ["$\mathrm{Baseline}$", maxTHPLegend],
                                         ["teal", "crimson"]):
                     axs[row, col].plot(np.arange(0, 0.2, 0.2 / len(data[idxList[row]])), data[idxList[row]], c=c, ls="-", lw=1, label=lbl)  # Plot two lines for each ax (data index based on row)
 
         for col, title in enumerate(["Inlet", "Outlet"]):                       # For each column
             axs[0, col].set_title(f"$\mathrm{{{title}}}$", fontsize=10)         # ... draw titles on top row
-            axs[-1, col].set_xlabel("$\mathrm{Pipe\ radius\ [r]}$", fontsize=6)  # ... draw x-axis labels on bottom row
+            axs[-1, col].set_xlabel("$\mathrm{Radial\ location\ [m]}$", fontsize=6)  # ... draw x-axis labels on bottom row
         fig.legend(*axs[0, 0].get_legend_handles_labels(), loc='outside lower center', ncol=2, fontsize=6, borderaxespad=0.1)  # Legend (from any axis) drawn outside at the bottom of the figure
         plt.tight_layout()                                                      # Apply tight layout
         fig.savefig(plotDir / f"varPlot_{plotSuffix}.pdf", bbox_inches='tight')  # Save figure as PDF
@@ -264,12 +286,14 @@ def historyPlot(plotParams: dict[str, Union[float, bool]],
         xPredExpanded = torch.load(stateDictDir / "optimalSearchResults.pt", weights_only=False)["xPredExpanded"]  # Load maximised THP input features
 
         match xPredExpanded.shape[0]:                                           # Formatting string depends on number of maximised features
+            case 2:
+                annotation = "$A_1 = {:.4f}$\n$k_1 = {:.0f}$".format(*xPredExpanded)
             case 3:                                                             # Case: A1, k1, Re
-                annotation = "$A_1 = {:.3f}$\n$k_1 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
+                annotation = "$A_1 = {:.4f}$\n$k_1 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
             case 4:                                                             # Case: A1, A2, k1, k2
-                annotation = r"\begin{{align*}}A_1 &= {:.3f}\\[-6pt] A_2 &= {:.3f}\\[-6pt] k_1 &= {:.0f}\\[-6pt] k_2 &= {:.0f}\end{{align*}}".format(*xPredExpanded)
+                annotation = r"\begin{{align*}}A_1 &= {:.4f}\\[-6pt] A_2 &= {:.4f}\\[-6pt] k_1 &= {:.0f}\\[-6pt] k_2 &= {:.0f}\end{{align*}}".format(*xPredExpanded)
             case 5:                                                             # Case: A1, A2, k1, k2, Re
-                annotation = "$A_1 = {:.3f}$\n$A_2 = {:.3f}$\n$\ k_1 = {:.0f}$\n$\ k_2 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
+                annotation = "$A_1 = {:.4f}$\n$A_2 = {:.4f}$\n$\ k_1 = {:.0f}$\n$\ k_2 = {:.0f}$\n$\mathrm{{Re}} = {:.0f}$".format(*xPredExpanded)
 
         ax.plot(np.abs(thpHistory), c="m", label="$\dot{Q}$ optimisation history", linewidth=1, markersize=2)  # Plot THP differential evolution history (inverted, as we are maximising)
         ax.annotate(annotation,                                                 # Insert annotation of maximised THP parameters
@@ -343,7 +367,9 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
                     plotMask = lossTableVar[:, freeVarIdx] == freeVar           # Boolean mask of everything to be plotted in this axis (everything for current "free variable")
                     if modelSuffix == "NN":                                     # As NN plots are per-line, also mark only data for the current line to be plotted
                         plotMask = plotMask & (lossTableVar[:, 1] == line)
-                        
+                        if sum(plotMask) <= 1:
+                            continue
+                    
                     xData = lossTableVar[plotMask, xVarIdx]                     # Extract ordered list of data for the x-axis
                     sortedIdx = np.argsort(xData.astype(float if modelSuffix == "NN" else str))  # Identify order of element indices that would return a sorted array (for plotting data in order, numerically or alphabetically)
                     losses = lossTableVar[plotMask, -1]                         # Extract corresponding array of loss arrays
@@ -351,24 +377,28 @@ def mlBenchmarkPlot(plotParams: dict[str, Union[float, bool]],
                     # Plot mean losses at each x-point, where x-values are just ordered integers (will be labelled separately), ensuring even separation of x-points
                     ax.plot(range(1, len(xData)+1), lossMean[sortedIdx], label=f"$\mathrm{{layers}} = \mathrm{{{line}}}$" if modelSuffix == "NN" else "$\mathrm{Kernel}$", marker=marker, markersize=2, color=colour, linestyle="-", linewidth=1)
                     # For each x-point and line, also plot a violin plot that illustrates the distribution of losses (assuming multiple samples per point)
-                    violinParts = ax.violinplot(losses[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=0.9)  # Plot violin plot, showing minima, maxima, means and the data distribution)
-                    _updateViolinColours(violinParts, colour)                   # Update colour of violin plot so it matches the current colourmap
-                    ax.set_xticks(range(1, len(xData)+1), [tick.lstrip("0") for tick in xData[sortedIdx]])  # Set x-ticks based on previously sorted x data labels (remove leading zeros)
-                    ax.tick_params(axis='both', labelsize=6)                    # Modify tick label size
+                    try:
+                        violinParts = ax.violinplot(losses[sortedIdx], range(1,len(xData)+1), showmeans=True, widths=0.9)  # Plot violin plot, showing minima, maxima, means and the data distribution)
+                        _updateViolinColours(violinParts, colour)               # Update colour of violin plot so it matches the current colourmap
+                    except ValueError:
+                        print(f"Zero-size array to reduction operation minimum which has no identity {plotDir}, {freeVarLabel}, {xVarLabel}")
+                    tickLabel = ["".join([letter if letter.isupper() else "" for letter in tick]) if xVarLabel == "kernel" else tick for tick in xData[sortedIdx]]
+                    ax.set_xticks(range(1, len(xData)+1), [tick.lstrip("0") if xVarLabel == "neurons" else tick for tick in tickLabel])  # Set x-ticks based on previously sorted x data labels (remove leading zeros)
+                    ax.tick_params(axis='both', which="both", labelsize=8)      # Modify tick label size
                     ax.set_yscale('log')                                        # As this plot shows loss, y-axis should be logarithmic
                     ax.grid(which="both", axis="both", alpha=0.5, linewidth=0.1)  # Draw gridlines on both axes
             
             # Based on model prefix, set y-labels (row labels) in the first column
             for row, lbl in enumerate([""] if modelPrefix == "L" else ["(p)", "(T)", "(v_{{x}})"]):
-                axs[row, 0].set_ylabel(f"$\mathrm{{J}}{{{lbl}}}$", fontsize=8)
+                axs[row, 0].set_ylabel(f"$\mathrm{{J}}{{{lbl}}}$", fontsize=10)
             # Based on model prefix, also draw column labels (upper row titles) and x-axis label (bottom row only)
             for col, lbl in enumerate(["$f_\mathrm{f}$", "$f_\mathrm{h}$"] if modelPrefix == "L" else ["$\mathrm{Inlet}$", "$\mathrm{Outlet}$"]):
                 axs[0, col].set_title(lbl, fontsize=10) 
-                axs[-1, col].set_xlabel("$\mathrm{Validation\ split}$" if xVarLabel == "valSplit" else ("$\mathrm{Neurons}$" if xVarLabel == "neurons" else "$\mathrm{Kernel}$"))
-                
-            axs[0, -1].legend(fontsize=6)                                       # Legend in top right axis only
-            plt.tight_layout()                                                  # Apply tight layout
-            fig.savefig(plotDir / f"mlBenchmark_{freeVarLabel}={freeVar}_x={xVarLabel}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
+                axs[-1, col].set_xlabel("$\mathrm{Validation\ split}$" if xVarLabel == "valSplit" else ("$\mathrm{Neurons}$" if xVarLabel == "neurons" else "$\mathrm{Kernel}$"), fontsize=10)
+            if not sum(plotMask) <= 1:
+                axs[0, -1].legend(fontsize=10)                                  # Legend in top right axis only
+                plt.tight_layout()                                              # Apply tight layout
+                fig.savefig(plotDir / f"mlBenchmark_{freeVarLabel}={freeVar}_x={xVarLabel}.pdf", bbox_inches='tight')  # Save the generated figure as a PDF
             plt.close(fig)                                                      # Close the figure and free up resources
             
 def _getPlotDir(stateDictDir: Path) -> Path:

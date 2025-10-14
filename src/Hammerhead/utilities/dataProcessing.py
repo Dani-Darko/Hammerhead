@@ -66,6 +66,24 @@ def normaliseTensor(expandedTensor: torch.tensor) -> list[torch.tensor, torch.te
     normalisedTensor[torch.isnan(normalisedTensor)] = 0.0                       # Replace any NaN (occurs if minValue == maxValue) with zeros
     return [normalisedTensor, minValue, maxValue]                               # Return normalised tensor, as well as the mean and standard deviation of the original expanded tensor
 
+def normaliseTensorRef(expandedTensor: torch.tensor, minValue: torch.tensor, maxValue: torch.tensor) -> list[torch.tensor, torch.tensor, torch.tensor]:
+    """
+    Normalise a tensor to [minValue, maxValue] from reference tensor
+    
+    Parameters
+    ----------
+    expandedTensor : torch.tensor       Original denormalised tensor [snapshots, featureSize]
+    minValue: torch.tensor              Minimum value across dim 0 [1, featureSize]
+    maxValue: torch.tensor              Maximum value across dim 0 [1, featureSize]
+
+    Returns
+    -------
+    normalisedTensor: torch.tensor      Normalised tensor [snapshots, featureSize]
+    """
+    normalisedTensor = ((expandedTensor - minValue) / (maxValue - minValue))    # Normalise tensor to range [0, 1]
+    normalisedTensor[torch.isnan(normalisedTensor)] = 0.0                       # Replace any NaN (occurs if minValue == maxValue) with zeros
+    return [normalisedTensor, minValue, maxValue]                               # Return normalised tensor, as well as the mean and standard deviation of the original expanded tensor
+
 def denormaliseTensor(normalisedTensor: torch.tensor, minValue: torch.tensor, maxValue: torch.tensor) -> torch.tensor:
     """
     Revert normalised tensor to original data given original min/max values
@@ -235,7 +253,10 @@ def computeAllTensors(tensorParentDir: Path, tensorDirStem: str, caseDirList: li
         for tensorName, tensorGroup in zip(lumpedTensorNames, lumpedTensors):   # Iterate over all lumped-related tensors and their file names, (grouped by expanded, standardised, mean and std tensors)
             torch.save({name: tensor for name, tensor in zip(["lumpedT", "lumpedp"], tensorGroup)}, tensorDir / tensorName)  # Store data from each group in a dictionary, where the keys are lumpedT or lumpedp
             
-        torch.save({'profileBaseline': [bcvAndSvd[key][0][baselineCaseMask][0] for key in ["inletU", "inletT", "inletp", "outletU", "outletT", "outletp"]],  # keys represent order of entries as expected by plotting routine
+        torch.save({'xPredExpanded': xExpanded[maxTHPCaseMask][0],              # xExpanded and THP are used for legends in plotting routine
+                    'thpHistory': [thp[maxTHPCaseMask][0]],
+                    'thpBaseline': thp[baselineCaseMask][0],
+                    'profileBaseline': [bcvAndSvd[key][0][baselineCaseMask][0] for key in ["inletU", "inletT", "inletp", "outletU", "outletT", "outletp"]],  # keys represent order of entries as expected by plotting routine
                     'profileOptimised': [bcvAndSvd[key][0][maxTHPCaseMask][0] for key in ["inletU", "inletT", "inletp", "outletU", "outletT", "outletp"]]},
                     tensorDir / "variableProfiles.pt")                          # Store data for plotting variable profiles, comparing baseline vs max cases
         
@@ -319,6 +340,7 @@ def lumpedDataCalculation(bcvData: list[torch.tensor], Cp: float = 5230.0) -> tu
     inU, inT, inp, outU, outT, outp = bcvData                                   # Expand BCV tensors from list by their shorthand name
     lumpedT = torch.trapz( _bSubT(outT, outU) - _bSubT(inT, inU) )              # Calculate the integral of the substraction between boundaries for advected heat flux
     lumpedp = - torch.trapz( _bSubP(outp, outU) - _bSubP(inp, inU) )            # Calculate the integral of the substraction between boundaries for dissipation rate
+    #return lumpedT, lumpedp
     return torch.unsqueeze(lumpedT, 1), torch.unsqueeze(lumpedp, 1)             # Add an extra dimension to each 1D tensor to conform to the format (n, outputDimension)
 
 ###############################################################################

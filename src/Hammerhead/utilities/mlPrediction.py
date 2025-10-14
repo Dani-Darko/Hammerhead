@@ -254,11 +254,14 @@ def maximiseTHP(modelName: str,
                                         args=(modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, True),  # Arguments for predictTHP function
                                         bounds = torch.stack((torch.zeros_like(xMin), torch.ones_like(xMax))).T,  # Bounds are the per-feature minima and maxima (0 and 1)
                                         callback=lambda intermediate_result: thpHistory.append(intermediate_result.fun),  # Callback to append intermediate minimisation results to thpHistory list
-                                        tol=1e-4,                               # Convergence relative tolerance
+                                        x0 = torch.ones_like(xMin)*0.5,         # Force x0 to start at the central values, away from boundar values to reduce local minima
+                                        strategy='best1bin',                    # Function used to compute the new values of "x", strategy is best of values, binary operation
+                                        tol=1e-2,                               # Convergence relative tolerance
                                         polish=True)                            # Improve post-minimisation result
     xPredMax = torch.from_numpy(xObjective["x"]).float()                        # Convert the 1D numpy array (optimised shape features) to a 2D tensor
     xPredExpanded = denormaliseTensor(xPredMax, xMin, xMax)                     # ... and denormalise (expand) it
-
+    thpBaseline = predictTHP(xPredBaseline.unsqueeze(0), modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, maximise=True)  # Compute baseline THP
+    
     if modelName[0] != "L":                                                     # If the current model isn't lumped, we can also compute variable profiles
         xPredBaseline = torch.zeros(xMin.shape[0])                              # Shape features of baseline case (all zeros)
         if xPredBaseline.shape[0] in [3, 5]:                                    # If Re_All (number of features is 3 or 5), final entry is Re, which is NOT zero for baseline case
@@ -266,15 +269,16 @@ def maximiseTHP(modelName: str,
         profileBaseline = predictTHP(xPredBaseline.unsqueeze(0), modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, varProfile=True)  # Compute baseline variable profiles
         profileOptimised = predictTHP(xPredMax.unsqueeze(0), modelName, modelDict, outputMin, outputMax, stateDictDir, VTReduced, varProfile=True)  # Compute optimised variable profiles
     
-    torch.save({'xPredExpanded': xPredExpanded,
+    torch.save({'xPredExpanded': xPredExpanded,                                 # xExpanded and THP are used for legends in plotting routine
                 'thpHistory': thpHistory,
+                'thpBaseline': thpBaseline,
                 'profileBaseline': None if modelName[0] == "L" else [entry.squeeze() for entry in profileBaseline[0]],  # (ignore upper and lower limits, just store list of variable tensors)
                 'profileOptimised': None if modelName[0] == "L" else [entry.squeeze() for entry in profileOptimised[0]]},  # (select only: outletU [2], outletT [3], inletp [4])
                 Path(stateDictDir) / "optimalSearchResults.pt")                 # Store optimal search results
                 
     _, Re, _, _, _, harmonics = tensorDir.stem.split("_")                       # Extract the Reynolds number and number of harmonics from the tensorDir name
     featureLabels = ["A1", "A2", "k1", "k2", "Re"][:(5 if Re == "All" else 4):(2 if harmonics == "1" else 1)]  # Match feautre positions with their corresponding labels
-    labelledFeatureValues = [f"{label}={value.item():.4f}" for label, value in zip(featureLabels, xPredExpanded)]  # Construct of a list of strings where each entry is a labelled feature with its optimal value
+    labelledFeatureValues = [f"{label}={value.item():.5f}" for label, value in zip(featureLabels, xPredExpanded)]  # Construct of a list of strings where each entry is a labelled feature with its optimal value
     archParts =  stateDictDir.name.split("_")[:-2]                              # List of architecture parts [name1, value1, name2, value2, ...]
     archString = ", ".join([f"{archParts[i]}={archParts[i+1]}" for i in range(0, len(archParts), 2)])  # Compute architecture string as "name1=value1, name2=value2, ..."
         
